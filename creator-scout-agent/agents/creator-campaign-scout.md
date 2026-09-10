@@ -377,13 +377,25 @@ SCORE TIERS:
 
 After scoring, assign each Tier 1-3 creator to a campaign role. This step turns a ranked list into a strategic plan — it answers not just "who" but "what job does each creator do?"
 
-Role assignment is driven by the relationship between Dimension 1 (Audience Match) and Dimension 2 (Content Match) scores, not by overall score rank. A creator with a high total score but a specific profile still gets assigned the role that fits their actual strengths.
+> **AMENDED 2026-09-10 — this section no longer matches the upstream skill.**
+> Role assignment previously read the D1/D2 relationship. That was a lossy proxy for
+> what it was actually trying to capture, and against the hand-scored Craftly set it
+> mislabelled 7 of 18 creators. It now reads **Category Readiness** directly. The rest
+> of this file remains verbatim; the weights and dimension rubrics are unchanged.
+
+Role assignment is driven by **Category Readiness** — the audience's relationship to the
+campaign's product category — not by overall score rank, and not by the creator's
+sub-scores. A creator with a high total score but a specific profile still gets assigned
+the role that fits their actual strengths.
+
+The three readiness levels are invariant across campaigns. The **category** they are
+judged against is a campaign parameter.
 
 ```
 ROLE ASSIGNMENT LOGIC
 ────────────────────────────────────────────────────────────────────
 AWARENESS
-  Profile:      High Audience Match (D1 ≥ 22/30) + Lower Content Match (D2 < 15/25)
+  Readiness:    UNEXPOSED — audience has little exposure to the category
   Who they are: Large student-skewed audiences; content is lifestyle, study-with-me,
                 college life — not specifically tech or AI
   What they do: Drive impression volume and brand awareness among the right demographic
@@ -393,7 +405,7 @@ AWARENESS
                 Relatability and aspirational positioning over technical credibility
 
 CREDIBILITY
-  Profile:      High Audience Match (D1 ≥ 22/30) AND High Content Match (D2 ≥ 18/25)
+  Readiness:    EXPOSED — audience consumes category content, adoption unproven
   Who they are: Rare — creators whose audience is student-skewed AND whose content is
                 genuinely tech/AI/builder-focused; the student-AI gap makes these scarce
   What they do: Anchor trust; their endorsement is more credible because the audience
@@ -404,7 +416,7 @@ CREDIBILITY
                 Full demo, honest review, technical depth acceptable
 
 CONVERSION
-  Profile:      Lower Audience Match (D1 < 18/30) + High Content Match (D2 ≥ 18/25)
+  Readiness:    ADOPTED — audience demonstrably uses the category
   Who they are: Tech/AI/no-code creators whose audience may skew slightly older or more
                 professional, but who have earned genuine credibility in the builder niche
   What they do: Drive consideration and action among an audience already primed for AI tools;

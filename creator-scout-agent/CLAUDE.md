@@ -62,25 +62,58 @@ Sub-scores are 1-5. The skill states its rubric in points out of 100
 scales, and `score_100 == weighted_score * 20` exactly. `scorer.py` asserts this
 identity. Tier bands (Tier 1 75-100, Tier 2 55-74, Tier 3 35-54) read off `score_100`.
 
-### 3. Campaign role is assigned from the D1/D2 relationship, not from total score
+### 3. Campaign role is assigned from Category Readiness, not from total score
 Role and tier are independent dimensions. A Tier 1 creator can be an Awareness
 candidate; a Tier 2 creator can be a Credibility anchor.
 
+Role reads the **audience's relationship to the campaign's product category** — not
+the creator's sub-scores, and never the total.
+
 ```
-Audience >= 4 AND Content >= 4  -> Credibility
-Audience >= 4 AND Content <  4  -> Awareness
-Audience <  4 AND Content >= 4  -> Conversion
-Audience <  4 AND Content <  4  -> weaker quadrant; falls to the stronger of the two
-                                   dimensions (ties -> Awareness). See ROLE_RULES in scorer.py.
+unexposed  -> Awareness    audience has little exposure to the category
+exposed    -> Credibility  audience consumes category content, adoption unproven
+adopted    -> Conversion   audience demonstrably uses the category
 ```
+
+The three levels are invariant; the **category** they are judged against is a campaign
+parameter (`brief["category"]`). Readiness is a human judgement: absent, the creator is
+`NEEDS_REVIEW` and is never given a guessed role.
+
+**This replaced the D1/D2 rule** (`D1 >= 4 AND D2 >= 4 -> Credibility`, etc.). That rule
+was a lossy proxy: it measures who the audience is and what the creator makes, then
+infers adoption. Against the hand-scored Craftly set it mislabelled **7 of 18** creators —
+genzbestie scores 5/4 and is still Awareness, because scoring well on audience and
+content says nothing about whether that audience has ever opened a tool in the category.
+It also left a fourth quadrant (both below threshold) undefined. Changed 2026-09-10 with
+the product owner's sign-off; `config.ROLE_THRESHOLD` is now unused by role assignment.
 
 The **student-AI gap** is a structural constraint, not a sourcing failure. If the
 shortlist skews to Awareness and Conversion with few Credibility anchors, report that
 plainly — never rebalance by forcing creators into roles they don't fit.
 
-### 4. Engagement rate is a gate, not just a scorer
-Below-floor creators are ineligible regardless of other dimensions (`Status = Drop`).
-Floors: 3.5% TikTok/Instagram, 1.5% YouTube. Do not override this in the scoring model.
+### 4. D3 is one construct measured by many instruments
+Dimension 3 is **Audience Resonance**: does this creator's audience show up for their
+content? The construct is invariant. The instrument is not — it varies by platform and
+format, because the platforms are not commensurable:
+
+- **Feed video** (TikTok, Reels, Shorts, YouTube) exposes a view count -> `views / followers`
+- **Static and text** (Instagram carousels, LinkedIn posts) expose none -> `interactions / followers`
+
+A raw rate is therefore **meaningless across instruments**. 30% view rate on TikTok, 30%
+on YouTube and 30% interaction rate on LinkedIn are three different events. Each
+instrument carries its own bands and normalises to the same 1-5 scale. **Only the
+normalised score is comparable — never the raw rate.** See `config.INSTRUMENTS`.
+
+An instrument with `bands: None` is **not calibrated**: the engine returns
+`NEEDS_CALIBRATION` rather than inventing a band boundary. LinkedIn is uncalibrated today.
+
+Gates are separate from, and beat, the D3 score:
+
+- **Deliverable fit** — can the creator physically produce the asset? A newsletter is not
+  a weak video candidate, it is not a candidate. This is what excludes No-Code Exits.
+- **Authenticity** — suspected inauthentic comments drop a creator regardless of rate.
+  A high rate on fake comments is worse than a low rate on real ones. This is what
+  excludes sofieestudies despite a 4.05.
 
 ### 5. CPM is calculated from views, not followers
 `avg_views * SPONSOR_DECAY (0.85)` is the reach denominator. Never use follower count.

@@ -19,7 +19,8 @@ AGENTS_DIR = os.path.join(BASE_DIR, "agents")
 # the app can load and display it at runtime — see agent_spec.py.
 SPEC_FILE = os.path.join(AGENTS_DIR, "creator-campaign-scout.md")
 
-CREATOR_CSV = os.path.join(DATA_DIR, "sample_creators.csv")
+CREATOR_DATA = os.path.join(DATA_DIR, "creators.json")
+CREATOR_CSV = CREATOR_DATA  # legacy alias
 PIPELINE_INTEL = os.path.join(DATA_DIR, "pipeline_intel.json")
 SCHEDULE_STATE = os.path.join(DATA_DIR, "schedule_state.json")
 SCHEDULER_LOG = os.path.join(LOGS_DIR, "scheduler.log")
@@ -71,20 +72,109 @@ SCORE_TIERS = [
 # Role assignment cut (Step 5a). Applied to the 1-5 sub-scores.
 ROLE_THRESHOLD = 4.0
 
-# Engagement floors — a gate, not a tiebreaker (Step 3 / Hard Rules).
-ENGAGEMENT_FLOORS = {
-    "tiktok": 3.5,
-    "instagram": 3.5,
-    "youtube": 1.5,
+# --------------------------------------------------------------------------
+# Dimension 3 — Audience Resonance
+#
+# The CONSTRUCT is invariant: how strongly does a creator's audience show up
+# for their content? The INSTRUMENT that measures it is not. Platforms are not
+# commensurable:
+#
+#   - Feed video (TikTok, Reels, Shorts, YouTube) exposes a view count, so
+#     resonance is measured as views / followers ON THAT PLATFORM.
+#   - Static and text formats (Instagram carousels, LinkedIn posts) expose no
+#     view count at all, so resonance is measured as interactions / followers.
+#
+# A raw rate is therefore MEANINGLESS across instruments: 30% view rate on
+# TikTok, 30% on YouTube and 30% interaction rate on LinkedIn are three
+# different events. Each instrument carries its own bands and normalises to the
+# same 1-5 scale. Only the NORMALISED score is comparable — never the raw rate.
+#
+# `bands` are (min_rate, score_1_5) evaluated high-to-low; anything below the
+# last band scores 1. `bands: None` means the instrument is NOT YET CALIBRATED:
+# the engine refuses to score it rather than inventing a number.
+# --------------------------------------------------------------------------
+METRIC_VIEW_RATE = "view_rate"              # avg views of last 5 posts / followers
+METRIC_INTERACTION_RATE = "interaction_rate"  # (reactions+comments+reposts) / followers
+
+INSTRUMENTS = {
+    "tiktok": {
+        "metric": METRIC_VIEW_RATE,
+        "label": "View rate",
+        # PROVISIONAL. Fitted to the 11 TikTok/Instagram creators in the Craftly
+        # sheet (range 8.2%-185.8%, median ~28%). Algorithmic feeds push well
+        # beyond the follower base, so healthy rates here exceed 100%.
+        "bands": [(60.0, 5), (35.0, 4), (20.0, 3), (10.0, 2)],
+        "calibration": "provisional-n11",
+    },
+    "instagram": {
+        "metric": METRIC_VIEW_RATE,
+        "label": "View rate",
+        "bands": [(60.0, 5), (35.0, 4), (20.0, 3), (10.0, 2)],
+        "calibration": "provisional-n11",
+    },
+    "youtube": {
+        "metric": METRIC_VIEW_RATE,
+        "label": "View rate",
+        # Carried over unchanged from the hand-scored sheet, where this ladder
+        # discriminated correctly across the YouTube cohort (scores 2-5).
+        "bands": [(35.0, 5), (20.0, 4), (10.0, 3), (5.0, 2)],
+        "calibration": "sheet-derived",
+    },
+    "linkedin": {
+        "metric": METRIC_INTERACTION_RATE,
+        "label": "Interaction rate",
+        # NOT CALIBRATED. LinkedIn does not publish impressions, so resonance
+        # must come from interactions/followers — and no band boundaries have
+        # been fitted against real roster data yet. Until they are, LinkedIn
+        # creators return NEEDS_CALIBRATION on D3 instead of a guessed score.
+        "bands": None,
+        "calibration": "uncalibrated",
+    },
 }
 
-# Engagement rubric: (min_rate, points) evaluated high-to-low, per Dimension 3.
-ENGAGEMENT_RUBRIC = {
-    "tiktok": [(8.0, 25), (5.0, 19), (3.5, 13)],
-    "instagram": [(8.0, 25), (5.0, 19), (3.5, 13)],
-    "youtube": [(4.0, 25), (2.0, 19), (1.5, 13)],
+PLATFORM_SLUGS = tuple(INSTRUMENTS)
+
+GENERIC_COMMENT_PENALTY = 0.6  # D3 comment-quality modifier, on the 1-5 scale
+
+
+# --------------------------------------------------------------------------
+# Step 3 gates — eligibility, decided BEFORE any scoring.
+#
+# A gate is not a low score. A newsletter cannot shoot a video: it is not a
+# weak candidate for this campaign, it is not a candidate at all.
+# --------------------------------------------------------------------------
+# What a creator can physically produce, by the surfaces they publish on.
+FORMAT_CAPABILITIES = {
+    "tiktok": {"short_video"},
+    "instagram": {"short_video", "static"},
+    "youtube": {"long_video", "short_video"},
+    "linkedin": {"text", "static", "short_video"},
+    "newsletter": {"written"},
+    "twitter": {"text"},
+    "podcast": {"audio"},
 }
-GENERIC_COMMENT_PENALTY = 3  # Dimension 3 comment-quality modifier
+
+# What the Craftly brief actually asks for: 2 original videos + crossposts.
+DEFAULT_DELIVERABLE_FORMATS = ("short_video", "long_video")
+
+
+# --------------------------------------------------------------------------
+# Campaign role (Step 5a) — a CLASSIFICATION, not a score.
+#
+# Role reads the audience's relationship to the campaign's product CATEGORY,
+# not the creator's sub-scores. D1xD2 was a lossy proxy for this: it measures
+# who the audience is and what the creator makes, then infers readiness. On the
+# Craftly set it mislabelled 7 of 18 creators. Readiness is now explicit.
+#
+# The three levels are invariant. The CATEGORY they are judged against is a
+# campaign parameter (see DEFAULT_BRIEF["category"]).
+# --------------------------------------------------------------------------
+READINESS_ROLES = {
+    "unexposed": "Awareness",    # audience has little exposure to the category
+    "exposed": "Credibility",    # audience consumes category content, adoption unproven
+    "adopted": "Conversion",     # audience demonstrably uses the category
+}
+READINESS_ORDER = ("unexposed", "exposed", "adopted")
 
 # CPM model — Step 1.
 DEFAULT_CPM = 50.0
@@ -126,6 +216,9 @@ DEFAULT_BRIEF = {
         "want to build without knowing how to code."
     ),
     "campaign_goal": "awareness",
+    # The product CATEGORY that Category Readiness is judged against.
+    "category": "AI app-building tools",
+    "deliverable_formats": ("short_video", "long_video"),
     "target_audience": (
         "US university students aged 18-24, or creators whose audience skews 18-24 "
         "and US-dominant."

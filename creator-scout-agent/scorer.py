@@ -28,15 +28,27 @@ REQUIRED_FIELDS = (
     "name",
     "platform",
     "followers",
-    "avg_views",
-    "engagement_rate",
-    "geo_us_pct",
-    "brand_deals_count",
+    "resonance_rate",
+)
+
+# Dimensions that no engine can derive from a follower count. A human scores
+# these 1-5 with written evidence; absent, the creator is NEEDS_REVIEW and is
+# never given a guessed number.
+JUDGED_FIELDS = (
+    "audience_match_score",
+    "content_match_score",
+    "geo_match_score",
+    "commercial_maturity_score",
 )
 
 # Optional evidence fields. Absent means "no evidence", which scores 0 for that
 # component — it never means "assume a good value".
 NUMERIC_FIELDS = (
+    "resonance_rate",
+    "audience_match_score",
+    "content_match_score",
+    "geo_match_score",
+    "commercial_maturity_score",
     "followers",
     "avg_views",
     "engagement_rate",
@@ -50,6 +62,8 @@ NUMERIC_FIELDS = (
 STATUS_KEEP = "Keep"
 STATUS_DROP = "Drop"
 STATUS_REFRESH = "NEEDS_REFRESH"
+STATUS_REVIEW = "NEEDS_REVIEW"            # human judgement absent, never invented
+STATUS_CALIBRATION = "NEEDS_CALIBRATION"  # instrument has no fitted bands yet
 
 ROLE_AWARENESS = "Awareness"
 ROLE_CREDIBILITY = "Credibility"
@@ -108,15 +122,18 @@ def _platforms(value: Any) -> list[str]:
     out = []
     for part in parts:
         slug = part.strip().lower().replace(" ", "")
-        if slug in {"tiktok", "instagram", "youtube"} and slug not in out:
+        if slug in config.PLATFORM_SLUGS and slug not in out:
             out.append(slug)
     return out
 
 
 def _pretty_platform(slug: str) -> str:
-    return {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube"}.get(
-        slug, slug.title()
-    )
+    return {
+        "tiktok": "TikTok",
+        "instagram": "Instagram",
+        "youtube": "YouTube",
+        "linkedin": "LinkedIn",
+    }.get(slug, slug.title())
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +142,7 @@ def _pretty_platform(slug: str) -> str:
 def lock_criteria(brief: dict) -> dict:
     """Translate a campaign brief into the locked criteria set (Step 1)."""
     brief = {**config.DEFAULT_BRIEF, **(brief or {})}
-    platforms = _platforms(brief.get("platforms")) or ["tiktok", "instagram", "youtube"]
+    platforms = _platforms(brief.get("platforms")) or list(config.PLATFORM_SLUGS)
     band = _text(brief.get("follower_band")).lower() or "all"
     if band not in config.FOLLOWER_BANDS:
         band = "all"
@@ -153,7 +170,21 @@ def lock_criteria(brief: dict) -> dict:
         "follower_band_display": _band_label(band, band_min, band_max),
         "shortlist_size": size,
         "exclusions": exclusions,
-        "engagement_floors": {p: config.ENGAGEMENT_FLOORS[p] for p in platforms},
+        "instruments": {
+            p: {
+                "metric": config.INSTRUMENTS[p]["metric"],
+                "label": config.INSTRUMENTS[p]["label"],
+                "calibration": config.INSTRUMENTS[p]["calibration"],
+                "calibrated": bool(config.INSTRUMENTS[p]["bands"]),
+            }
+            for p in platforms
+            if p in config.INSTRUMENTS
+        },
+        "category": _text(brief.get("category")) or "the product category",
+        "deliverable_formats": tuple(
+            brief.get("deliverable_formats") or config.DEFAULT_DELIVERABLE_FORMATS
+        ),
+        "readiness_roles": dict(config.READINESS_ROLES),
         "weights": dict(config.SCORING_WEIGHTS),
         "videos_per_creator": config.VIDEOS_PER_CREATOR,
         "sponsor_decay": config.SPONSOR_DECAY,
@@ -207,6 +238,20 @@ def normalise_creator(row: dict) -> dict:
         "notes": _text(row.get("notes")),
         "has_media_kit": _bool(row.get("has_media_kit")),
         "source": _text(row.get("source")).lower() or "manual",
+        # Category Readiness drives the campaign role (Step 5a).
+        "readiness": _text(row.get("readiness")).lower().strip(),
+        # Non-scored publishing surfaces (newsletter, podcast) still matter to
+        # the deliverable gate.
+        "other_surfaces": _text(row.get("other_surfaces")),
+        "location": _text(row.get("location")),
+        "search_source": _text(row.get("search_source")),
+        "sample_video": _text(row.get("sample_video")),
+        "sheet_outreach_angle": _text(row.get("sheet_outreach_angle")),
+        "sourced_from": _text(row.get("sourced_from")),
+        "sourced_date": _text(row.get("sourced_date")),
+        "followers_scope": _text(row.get("followers_scope")),
+        "rate_reproducible": row.get("rate_reproducible"),
+        "calibration_cohort": bool(row.get("calibration_cohort")),
     }
     for field in NUMERIC_FIELDS:
         creator[field] = _num(row.get(field))
@@ -234,7 +279,25 @@ def _primary_platform(creator: dict, criteria: dict) -> str:
     for slug in creator.get("platforms", []):
         if slug in criteria["platforms"]:
             return slug
-    return (creator.get("platforms") or ["tiktok"])[0]
+    # No briefed platform. Return the creator's own first, or "" — never
+    # fall back to a default, which would score them on a surface they are
+    # not on.
+    return (creator.get("platforms") or [""])[0]
+
+
+def _judged(creator: dict, field: str, dimension: str) -> tuple[float, list[str]] | None:
+    """Use a human 1-5 score when one exists, converted to dimension points.
+
+    Judged dimensions take human judgement as INPUT rather than reverse-engineering
+    it from metrics. The evidence note records that it was judged, not derived, so
+    a shortlist can always say which is which.
+    """
+    raw = creator.get(field)
+    if raw is None:
+        return None
+    score = max(1.0, min(5.0, float(raw)))
+    points = score / 5.0 * config.DIMENSION_POINTS[dimension]
+    return points, [f"judged {score:g}/5"]
 
 
 def score_audience_match(creator: dict) -> tuple[float, list[str]]:
@@ -243,6 +306,10 @@ def score_audience_match(creator: dict) -> tuple[float, list[str]]:
     The skill's D1 sub-rubric sums to 25 while the dimension is worth 30; the
     components are scaled by 30/25 so the dimension's own ceiling is reachable.
     """
+    judged = _judged(creator, "audience_match_score", "audience_match")
+    if judged is not None:
+        return judged
+
     notes = []
     age_pct = creator.get("audience_18_24_pct")
     evidence = creator.get("age_evidence")
@@ -287,6 +354,10 @@ def score_audience_match(creator: dict) -> tuple[float, list[str]]:
 
 def score_content_match(creator: dict) -> tuple[float, list[str]]:
     """Dimension 2 — niche alignment (20) + format compatibility (5)."""
+    judged = _judged(creator, "content_match_score", "content_match")
+    if judged is not None:
+        return judged
+
     notes = []
     niche = creator.get("niche_relevance_pct")
     if niche is None:
@@ -319,39 +390,71 @@ def score_content_match(creator: dict) -> tuple[float, list[str]]:
     return float(niche_pts + fmt_pts), notes
 
 
-def score_engagement(creator: dict, platform: str) -> tuple[float, list[str], bool]:
-    """Dimension 3 — rate rubric plus comment-quality modifier.
+def score_resonance(creator: dict, platform: str) -> tuple[float, list[str], str]:
+    """Dimension 3 — Audience Resonance.
 
-    Returns (points, notes, eligible). Below-floor creators are ineligible: the
-    engagement rate is a gate, not a tiebreaker.
+    One construct (does this audience show up?), measured by whichever
+    instrument the platform supports. Returns (points_out_of_25, notes, state)
+    where state is "" for a clean score, or a STATUS_* that blocks scoring.
+
+    The raw rate is never comparable across instruments; only the normalised
+    1-5 is. See config.INSTRUMENTS.
     """
-    notes = []
-    rate = creator.get("engagement_rate")
-    floor = config.ENGAGEMENT_FLOORS.get(platform, 3.5)
+    notes: list[str] = []
+    instrument = config.INSTRUMENTS.get(platform)
+    if instrument is None:
+        return 0.0, [f"no instrument defined for {platform or 'unknown platform'}"], STATUS_REFRESH
+
+    rate = creator.get("resonance_rate")
     if rate is None:
-        return 0.0, ["engagement rate missing"], False
-    if rate < floor:
-        return 0.0, [f"{rate:.1f}% below the {floor:.1f}% {platform} floor"], False
+        rate = creator.get("engagement_rate")  # legacy field name
+    if rate is None:
+        return 0.0, ["resonance rate missing"], STATUS_REFRESH
 
-    points = 13
-    for min_rate, band_points in config.ENGAGEMENT_RUBRIC.get(platform, []):
+    bands = instrument["bands"]
+    if not bands:
+        # Uncalibrated instrument (LinkedIn today). Refuse to score rather than
+        # inventing a band boundary.
+        return 0.0, [
+            f"{instrument['label']} {rate:.1f}% on {_pretty_platform(platform)} — "
+            f"{platform} bands not yet calibrated"
+        ], STATUS_CALIBRATION
+
+    score = 1
+    for min_rate, band_score in bands:
         if rate >= min_rate:
-            points = band_points
+            score = band_score
             break
-    notes.append(f"{rate:.1f}% on {_pretty_platform(platform)}")
+    notes.append(
+        f"{instrument['label']} {rate:.1f}% on {_pretty_platform(platform)} "
+        f"-> {score}/5"
+    )
 
+    # Authenticity is a gate, and it is separate from the rate. A high rate on
+    # inauthentic comments is worse than a low rate on real ones.
     quality = creator.get("comment_quality")
     if quality in {"inauthentic", "suspected", "bot"}:
-        return 0.0, notes + ["comments suspected inauthentic"], False
+        return 0.0, notes + ["comments suspected inauthentic"], STATUS_DROP
     if quality in {"generic", "emoji"}:
-        points -= config.GENERIC_COMMENT_PENALTY
-        notes.append("generic comments (-3)")
+        score = max(score - config.GENERIC_COMMENT_PENALTY, 1.0)
+        notes.append(f"generic comments (-{config.GENERIC_COMMENT_PENALTY})")
 
-    return float(max(points, 0)), notes, True
+    # Flag when the creator spans instruments with different bands, so the
+    # chosen one is visible rather than silent.
+    spans = {config.INSTRUMENTS[p]["metric"] for p in creator.get("platforms", [])
+             if p in config.INSTRUMENTS}
+    if len(spans) > 1:
+        notes.append("spans multiple instruments — scored on " + _pretty_platform(platform))
+
+    return float(score) / 5.0 * config.DIMENSION_POINTS["engagement_score"], notes, ""
 
 
 def score_geo(creator: dict) -> tuple[float, list[str]]:
     """Dimension 4 — strength of US confirmation, not presence of a US audience."""
+    judged = _judged(creator, "geo_match_score", "geo_score")
+    if judged is not None:
+        return judged
+
     pct = creator.get("geo_us_pct")
     evidence = creator.get("geo_evidence")
     hard = evidence in {"hard", "media_kit", "marketplace"}
@@ -368,6 +471,10 @@ def score_geo(creator: dict) -> tuple[float, list[str]]:
 
 def score_commercial_maturity(creator: dict) -> tuple[float, list[str]]:
     """Dimension 5 — can they execute a paid brief professionally?"""
+    judged = _judged(creator, "commercial_maturity_score", "commercial_maturity")
+    if judged is not None:
+        return judged
+
     deals = creator.get("brand_deals_count")
     if deals is None:
         return 0.0, ["no brand-deal data"]
@@ -388,18 +495,20 @@ def _to_five(points: float, dimension: str) -> float:
 # ---------------------------------------------------------------------------
 # Step 5a — campaign role
 # ---------------------------------------------------------------------------
-def assign_role(audience_match: float, content_match: float) -> str:
-    """Role from the D1/D2 relationship — never from the total score."""
-    threshold = config.ROLE_THRESHOLD
-    if audience_match >= threshold and content_match >= threshold:
-        return ROLE_CREDIBILITY
-    if audience_match >= threshold:
-        return ROLE_AWARENESS
-    if content_match >= threshold:
-        return ROLE_CONVERSION
-    # Neither dimension clears the bar: fall to the stronger side rather than
-    # forcing a Credibility label the evidence does not support.
-    return ROLE_CONVERSION if content_match > audience_match else ROLE_AWARENESS
+def assign_role(readiness: str) -> str | None:
+    """Role from Category Readiness — never from D1/D2, never from the total.
+
+    Readiness is the audience's relationship to the campaign's product
+    category. D1xD2 was a lossy proxy for it: it measures who the audience is
+    and what the creator makes, then infers adoption. On the hand-scored
+    Craftly set that proxy mislabelled 7 of 18 creators, because a creator can
+    score 5/4 on audience and content while their audience has never opened a
+    tool in the category.
+
+    Returns None when readiness has not been judged — the caller turns that
+    into NEEDS_REVIEW rather than guessing a role.
+    """
+    return config.READINESS_ROLES.get(_text(readiness).lower().strip())
 
 
 def tier_for(score_100: float) -> str:
@@ -441,12 +550,40 @@ def cpm_estimate(creator: dict, criteria: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Step 5 entry point
 # ---------------------------------------------------------------------------
+def _unscored(creator, criteria, status, reason, notes=None) -> dict:
+    """The shape of a creator the engine refuses to score. Never invents."""
+    return {
+        "audience_match": None,
+        "content_match": None,
+        "engagement_score": None,
+        "geo_score": None,
+        "commercial_maturity": None,
+        "weighted_score": None,
+        "score_100": None,
+        "tier": "Unscored",
+        "role": None,
+        "role_colour": "",
+        "readiness": _text(creator.get("readiness")).lower().strip(),
+        "outreach_angle": "Resolve the gap before outreach.",
+        "status": status,
+        "status_reason": reason,
+        "evidence": list(notes or []),
+        "cpm": cpm_estimate(creator, criteria),
+        "eligible": False,
+    }
+
+
 def score_creator(creator: dict, criteria: dict) -> dict:
     """Score one creator. Returns the full auditable breakdown."""
     result = dict(creator)
     gaps = missing_required(creator)
     platform = _primary_platform(creator, criteria)
     result["primary_platform"] = _pretty_platform(platform)
+
+    deliverable_ok, deliverable_reason = can_deliver(creator, criteria)
+    if not deliverable_ok:
+        result.update(_unscored(creator, criteria, STATUS_DROP, deliverable_reason))
+        return result
 
     if gaps:
         # Never score on invented data.
@@ -475,9 +612,42 @@ def score_creator(creator: dict, criteria: dict) -> dict:
 
     d1_pts, d1_notes = score_audience_match(creator)
     d2_pts, d2_notes = score_content_match(creator)
-    d3_pts, d3_notes, eligible = score_engagement(creator, platform)
+    d3_pts, d3_notes, d3_state = score_resonance(creator, platform)
+    eligible = d3_state != STATUS_DROP
     d4_pts, d4_notes = score_geo(creator)
     d5_pts, d5_notes = score_commercial_maturity(creator)
+
+    if d3_state == STATUS_DROP:
+        result.update(_unscored(
+            creator, criteria, STATUS_DROP, "; ".join(d3_notes), notes=d3_notes
+        ))
+        return result
+
+    if d3_state in {STATUS_REFRESH, STATUS_CALIBRATION}:
+        result.update(_unscored(
+            creator, criteria, d3_state, "; ".join(d3_notes), notes=d3_notes
+        ))
+        return result
+
+    unjudged = [f for f in JUDGED_FIELDS if creator.get(f) is None]
+    if unjudged:
+        result.update(_unscored(
+            creator, criteria, STATUS_REVIEW,
+            "not yet judged: " + ", ".join(f.replace("_score", "") for f in unjudged),
+            notes=d3_notes,
+        ))
+        return result
+
+    readiness = _text(creator.get("readiness")).lower().strip()
+    role = assign_role(readiness)
+    if role is None:
+        # Readiness is a human judgement. Absent, the creator is not given a
+        # guessed role — the same rule that governs missing metrics.
+        result.update(_unscored(
+            creator, criteria, STATUS_REVIEW,
+            "category readiness not judged", notes=d3_notes,
+        ))
+        return result
 
     audience_match = _to_five(d1_pts, "audience_match")
     content_match = _to_five(d2_pts, "content_match")
@@ -496,7 +666,6 @@ def score_creator(creator: dict, criteria: dict) -> dict:
     weighted_score = round(weighted_score, 3)
     score_100 = round(weighted_score * 20, 1)
 
-    role = assign_role(audience_match, content_match)
     status, reason = _status_for(creator, criteria, eligible, score_100, d3_notes)
 
     result.update(
@@ -517,7 +686,8 @@ def score_creator(creator: dict, criteria: dict) -> dict:
             "score_100": score_100,
             "tier": tier_for(score_100),
             "role": role,
-            "role_colour": config.ROLE_COLOURS[role],
+            "role_colour": config.ROLE_COLOURS.get(role, ""),
+            "readiness": readiness,
             "outreach_angle": outreach_angle(role, criteria),
             "status": status,
             "status_reason": reason,
@@ -530,10 +700,40 @@ def score_creator(creator: dict, criteria: dict) -> dict:
     return result
 
 
+def can_deliver(creator: dict, criteria: dict) -> tuple[bool, str]:
+    """Step 3 gate — can this creator physically produce the deliverable?
+
+    A gate, not a low score. A newsletter cannot shoot a video: it is not a
+    weak candidate for a video campaign, it is not a candidate at all. On the
+    Craftly set this is what should have excluded No-Code Exits (a newsletter)
+    before it was ever scored 3.0 and ranked.
+    """
+    wanted = set(criteria.get("deliverable_formats") or ())
+    if not wanted:
+        return True, ""
+    capable: set[str] = set()
+    for slug in creator.get("platforms") or []:
+        capable |= config.FORMAT_CAPABILITIES.get(slug, set())
+    raw = str(creator.get("other_surfaces") or "")
+    for token in raw.replace("|", ",").replace("/", ",").split(","):
+        slug = token.strip().lower().replace(" ", "")
+        capable |= config.FORMAT_CAPABILITIES.get(slug, set())
+    if capable & wanted:
+        return True, ""
+    have = ", ".join(sorted(capable)) or "no known publishing surface"
+    return False, (
+        f"cannot produce the deliverable ({'/'.join(sorted(wanted))}) — {have}"
+    )
+
+
 def _status_for(creator, criteria, eligible, score_100, engagement_notes) -> tuple[str, str]:
     """Keep / Drop, with the reason named rather than buried."""
     if not eligible:
         return STATUS_DROP, "; ".join(engagement_notes) or "below engagement floor"
+
+    deliverable_ok, deliverable_reason = can_deliver(creator, criteria)
+    if not deliverable_ok:
+        return STATUS_DROP, deliverable_reason
 
     exclusions = [e.lower() for e in criteria.get("exclusions", [])]
     haystack = " ".join(
@@ -581,6 +781,8 @@ def build_shortlist(brief: dict, creators: str | Iterable[dict]) -> dict:
     keep = [c for c in scored if c["status"] == STATUS_KEEP]
     dropped = [c for c in scored if c["status"] == STATUS_DROP]
     refresh = [c for c in scored if c["status"] == STATUS_REFRESH]
+    review = [c for c in scored if c["status"] == STATUS_REVIEW]
+    calibration = [c for c in scored if c["status"] == STATUS_CALIBRATION]
 
     keep.sort(key=lambda c: c["weighted_score"], reverse=True)
     shortlist = keep[: criteria["shortlist_size"]]
@@ -589,19 +791,24 @@ def build_shortlist(brief: dict, creators: str | Iterable[dict]) -> dict:
         creator["rank"] = i
 
     # NEEDS_REFRESH rows stay visible — an honest gap beats an invented number.
-    table = shortlist + overflow + refresh + dropped
+    table = shortlist + overflow + review + calibration + refresh + dropped
+    assert len(table) == len(scored), "a creator fell out of the table"
 
     return {
         "criteria": criteria,
         "shortlist": shortlist,
         "table": table,
         "needs_refresh": refresh,
+        "needs_review": review,
+        "needs_calibration": calibration,
         "dropped": dropped,
         "composition": composition_summary(shortlist, criteria),
         "counts": {
             "evaluated": len(scored),
             "shortlisted": len(shortlist),
             "needs_refresh": len(refresh),
+            "needs_review": len(review),
+            "needs_calibration": len(calibration),
             "dropped": len(dropped),
         },
     }
