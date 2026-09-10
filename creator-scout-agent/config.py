@@ -47,6 +47,42 @@ API_BASE_URLS = {
 
 
 # --------------------------------------------------------------------------
+# Discovery — Steps 2 and 3 of creator-campaign-scout.md
+# See DISCOVERY_PLAN.md. Nothing here fabricates a creator: a source adapter
+# returns what it got, and an absent field stays absent.
+# --------------------------------------------------------------------------
+DISCOVERY_DIR = os.path.join(DATA_DIR, "discovery")
+
+# YouTube Data API v3 — the free tier, and the only source that is official,
+# permitted and returns real audience-side numbers. Off until a key is present.
+# Never commit a key: this reads the environment.
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
+YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
+
+# Quota is the binding constraint, so it is modelled rather than discovered by
+# failing. Defaults are Google's published costs; a project starts at 10,000/day.
+YOUTUBE_QUOTA_PER_DAY = 10_000
+YOUTUBE_QUOTA_COSTS = {
+    "search": 100,   # search.list — expensive, ~100 calls/day is the whole budget
+    "channels": 1,   # channels.list — batches up to 50 ids
+    "videos": 1,     # videos.list — batches up to 50 ids
+    "commentThreads": 1,
+}
+YOUTUBE_BATCH_SIZE = 50          # ids per channels.list / videos.list call
+YOUTUBE_VIDEOS_SAMPLED = 10      # recent videos used for the median view count
+
+# How many candidates a single discovery run may return per source. A cap that
+# is hit must be reported, never silently truncated — see discovery.py.
+DISCOVERY_MAX_PER_SOURCE = 200
+
+# Confidence a source's output carries. This is about the SOURCE, not the
+# creator: it records how the row was obtained so a reader can weigh it.
+CONFIDENCE_MEASURED = "measured"    # a real metric from an official API
+CONFIDENCE_REPORTED = "reported"    # self-reported (media kit, bio)
+CONFIDENCE_CANDIDATE = "candidate"  # a handle with no metrics attached yet
+
+
+# --------------------------------------------------------------------------
 # Scoring model — Step 5 of creator-campaign-scout.md
 # LOCKED. Do not modify. See CLAUDE.md.
 # --------------------------------------------------------------------------

@@ -149,6 +149,36 @@ The boundary is what matters, and it must hold exactly:
 
 `tests/test_judging.py` pins all of the above.
 
+### 7. Discovery produces candidates, never creators
+`discovery.py` and `sources/` are the front half — Steps 2 and 3 of the spec. They are
+the first code in this project that *produces* creators rather than consuming them, which
+makes them the likeliest place to break rule 1. A system that invents a creator is worse
+than one that invents a metric: the metric is at least attached to someone real.
+
+A source adapter must:
+
+- **Return what it got, never what it inferred.** No estimating followers from views, no
+  inferring audience age from content. An absent field stays absent and becomes
+  `NEEDS_REFRESH`. A hidden subscriber count is **not** zero.
+- **Carry provenance.** `search_source` (which pass and query found them), `sourced_date`,
+  and `source_confidence` — `measured` (an API returned it), `reported` (self-reported),
+  or `candidate` (a handle with no metrics yet).
+- **Report a cap it hit.** `SourceResult.truncated` plus a note. A short list that looks
+  complete is the failure this codebase exists to prevent, so a YouTube run budgets its
+  quota up front and stops itself rather than being cut off mid-run.
+- **Never write judgement.** No sub-scores, no `readiness`, no role. Discovery is
+  mechanical and wide; judgement is human and narrow. Candidates flow to `/judge`.
+
+Two merge rules in `discovery.merge()`:
+
+- **Corroboration is evidence.** The same creator from three passes is the strongest free
+  signal discovery produces — keep it in `corroborated_by`, do not collapse it away.
+- **Conflicting metrics are never averaged.** The more confident source wins and the
+  disagreement goes in `metric_conflicts`. An average is a number no source reported.
+
+The spec's seed hashtags belong to the campaign they were written for and are used only
+when the brief names that brand — the same non-transfer rule as `readiness_category`.
+
 ## Enrichment toggle
 
 `config.py` -> `ENRICHMENT_ENABLED` (default `False`).
@@ -167,8 +197,11 @@ enricher.py     API enrichment stub (Favikon / Modash), off by default
 scheduler.py    weekly soft-roster discovery loop
 app.py          Flask API + server-rendered UI
 creator_pool.py uploaded-pool parsing/parking, and the judging write-back
+discovery.py    the discovery seam — candidates, provenance, dedupe (Step 2)
+sources/        discovery adapters: query_plan.py (free), youtube.py (needs a key)
 templates/      base.html (shell), index.html (Screen 1 brief),
                 results.html (Screen 2 shortlist), judge.html (judging screen),
+                discover.html (Screen 0 discovery),
                 schedule.html (schedule console)
 static/         styles.css
 data/           creators.json (sourced), pipeline_intel.json

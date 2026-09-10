@@ -3,7 +3,7 @@
 **Status: handed over 2026-09-10.** Feature-complete, merged to `main`, and **deployed
 on Render** from `render.yaml` — engine, web app, scheduler and enrichment stub all built
 and exercised in a real browser.
-**Test suite:** `python -m pytest tests/` — 160 passing.
+**Test suite:** `python -m pytest tests/` — 201 passing.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
 file is a blocker on running the app. What remains is listed under **Still open**; the
@@ -361,6 +361,102 @@ as 0 on Screen 2. That is the CPM rule working (reach is modelled from views, ne
 followers), not a broken panel — and `avg_views` is a metric, so the judging screen
 correctly offers no way to type it.
 
+## Discovery — Phases 0-2 built 2026-09-10 (night session)
+
+Built against [`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md). **Not pushed** — committed
+locally at the product owner's request, for review first.
+
+| Phase | State |
+|---|---|
+| **0 — the seam** | ✅ `discovery.py` — candidate schema, provenance, dedupe with corroboration, source protocol |
+| **1 — YouTube** | ⚠️ `sources/youtube.py` — complete and tested against a patched transport, **but has never made a real call**. See roadblock 1. |
+| **2 — query plan + paste-back** | ✅ `sources/query_plan.py` + `/discover` — works today, no key, no spend |
+| 3 — scraping tier | not started |
+| 4 — panel tier | not started |
+
+### What works right now, with no key and no spend
+
+`/discover` builds ~100 real click-through searches from the brief across three
+passes, the operator runs the ones worth running, and pastes handles or profile URLs
+back. Those become candidates in the same pool an upload produces, and land on Screen 2
+scored — which for a raw paste means **every row `NEEDS_REFRESH`**, correctly, because a
+pasted handle is a lead and not a measurement.
+
+Verified in Chromium end to end: 98 query links, three passes, paste-back of two profile
+URLs plus one bare handle produced three candidates across three platforms, all
+`NEEDS_REFRESH`, 0 shortlisted. Empty paste returns 400 rather than silently doing
+nothing.
+
+### The design decisions worth knowing
+
+- **Corroboration is kept, not discarded.** The same creator found by three passes is
+  the strongest free signal discovery produces, so `merge()` records
+  `corroborated_by` and ranks corroborated candidates first.
+- **Conflicting metrics are never averaged.** The more confident source wins and the
+  disagreement is recorded in `metric_conflicts` — an average is a number no source
+  would stand behind.
+- **The spec's seed hashtags do not transfer between campaigns.** They are used only
+  when the brief names the spec's brand, and the mismatch is reported. Same rule as
+  `readiness_category`, for the same reason.
+- **Quota is budgeted, not discovered by failing.** A YouTube run stops inside its
+  budget and says "stopped after 2 of 5 searches" rather than being cut off by Google
+  mid-run and returning a short list that looks complete.
+- **A hidden subscriber count stays absent.** It never becomes 0, which would be the
+  most consequential lie available in this model.
+
+### ⚠️ Roadblock 1 — no YouTube API key, so Phase 1 is unverified
+
+`sources/youtube.py` is complete: search, batch enrichment, median-based
+`resonance_rate`, quota budgeting, error handling. It is tested against a patched
+transport, the same way `enricher.py` is. **It has never made a real HTTP call**, so the
+live response shape is unconfirmed.
+
+To finish it: create a Google Cloud project, enable YouTube Data API v3, and set
+`YOUTUBE_API_KEY` in the environment. Never commit it. Then run one search and check the
+real payload against `_to_candidate()`. I would expect `customUrl` and `country` to be
+the two fields most likely to be absent or shaped differently than assumed.
+
+Also still unverified from the plan: whether YouTube still exposes **related channels**.
+The spec's peer-graph pass depends on it and parts of that surface were deprecated.
+
+### ⚠️ Roadblock 2 — the manual-metric fork. **This one needs a decision.**
+
+Paste-back produces handles with no metrics. To score them, someone must attach real
+numbers. There is currently **no honest in-app way to do that**, and the reason is a
+rule I wrote earlier the same day.
+
+The judging screen enforces *"judgement can be typed, a metric must be sourced"* and
+offers no metric input at all. That was right for the judging screen. But taken
+literally it leaves the free discovery path dead-ending: you can source 40 handles and
+have no way to enter the follower counts you then look up by hand.
+
+And the rule cannot be literally true as stated, because **`data/creators.json` was
+itself manually sourced** — someone read a real profile and typed a real number, with
+`source: manual`, `sourced_from` and `sourced_date` recorded.
+
+So the actual distinction is not typed-versus-sourced. It is:
+
+> **A metric may be typed if it carries where it came from. A metric typed without
+> provenance is a fabrication.**
+
+The app cannot tell a looked-up number from an invented one — but it *can* refuse to
+accept one without `sourced_from` and `sourced_date`, which makes the difference
+auditable, which is the same move `rate_reproducible: false` already makes.
+
+**I did not build this**, because it revises a constraint written into `CLAUDE.md` and
+`README.md` a few hours earlier, and quietly reinterpreting the project's central rule is
+not a call to make unattended. The options:
+
+| Option | Cost | Effect |
+|---|---|---|
+| **A. Metric entry with mandatory provenance** — a "Refresh metrics" screen requiring `followers`, `resonance_rate`, `sourced_from`, `sourced_date` | ~half a day | Free discovery path works end to end. Rule restated as above. |
+| **B. Leave it** — metrics only ever arrive via API or CSV upload | none | Paste-back stays a list-builder; operator fills the CSV externally and re-uploads |
+| **C. Export candidates to CSV** with the metric columns blank, filled offline, re-uploaded | ~1 hour | No new rule; uses the upload path that already exists. Clunkier but changes nothing. |
+
+**My recommendation is C now and A later.** C is small, ships the loop, and needs no
+rule change; A is the better product but deserves a deliberate decision about the wording
+in `CLAUDE.md`, not an inference from a night's work.
+
 ## Still open
 
 Nothing here blocks running the app, and the app is deployed.
@@ -374,6 +470,9 @@ Nothing here blocks running the app, and the app is deployed.
 | **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. On Render's free tier it never will — that needs a background worker or a cron job on a paid plan. |
 | **In-app judgements are ephemeral** | Judging writes to a temporary working copy, never to `data/creators.json`. Correct — provenance cannot come from a browser form — but it means a judged pool is lost when the working copy expires. Export the shortlist, or copy the judgement onto the row. A "write back to the pool file" affordance is the obvious next step, and needs a decision about provenance first. |
 | **Uploads are ephemeral** | Parked under `data/uploads/` with a 6-hour sweep, and the Render filesystem resets on deploy. An export attempted after expiry returns a clear error, but the pool is gone. |
+| **YouTube adapter is unverified** | Built and tested against a patched transport; never made a real call. Needs a key. See roadblock 1 above. |
+| **The manual-metric fork** | Paste-back produces handles with no way to attach hand-sourced metrics. Needs a product decision — see roadblock 2 above. |
+| **Screening (Step 3) is not built** | `discovery.py` produces candidates; the authenticity and brand-safety triage in Step 3 of the spec is still entirely manual. The comment-quality gate exists in the scorer but nothing feeds it automatically. |
 | **Authentication** | There is none. Anyone with the deployed URL sees the full shortlist, including the commercial notes on named creators. Fine for a demo, not for real use. |
 | **End-to-end check of the live deploy** | The build and the gunicorn command are verified locally; the deployed URL itself has not been walked through screen by screen. |
 | **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Discover creators — Creator Campaign Scout{% endblock %}
+
+{% macro hidden_brief(form_values) %}
+  {% for field in ["brand_name", "product_description", "category", "campaign_goal",
+                   "target_audience", "exclusions"] %}
+    <input type="hidden" name="{{ field }}" value="{{ form_values[field] }}">
+  {% endfor %}
+  {% for platform in form_values.platforms %}
+    <input type="hidden" name="platforms" value="{{ platform }}">
+  {% endfor %}
+  <input type="hidden" name="cpm" value="{{ form_values.cpm }}">
+  <input type="hidden" name="follower_band" value="{{ form_values.follower_band }}">
+  <input type="hidden" name="shortlist_size" value="{{ form_values.shortlist_size }}">
+{% endmacro %}
+
+{% block content %}
+<section class="hero hero-row">
+  <div>
+    <h1>Discover creators</h1>
+    <p class="lede">
+      {{ plan.total_queries }} searches across {{ plan.passes|length }} passes for
+      <strong>{{ brief.brand_name }}</strong> · {{ brief.category }}
+    </p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
+  </div>
+</section>
+
+{% if error %}
+<div class="alert alert-danger">
+  <strong>Nothing was collected.</strong>
+  <p>{{ error }}</p>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+  <strong>These are searches, not results.</strong>
+  <p>
+    Nothing on this page has been validated. The app builds the queries from your brief;
+    you run the ones that look useful and paste back what you find. That is deliberate —
+    the spec says discovery "produces a query plan and candidate pool, not verified
+    metrics", and on TikTok and Instagram that is simply true: nothing free exposes data
+    about accounts you do not own.
+  </p>
+  <p>
+    A pasted handle is a <em>lead</em>, not a measurement. Collected rows arrive as
+    <code>NEEDS_REFRESH</code> until real metrics are attached — the app will not fill
+    them in.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Automated sources</h2>
+  <table class="creators">
+    <thead><tr><th>Source</th><th>Status</th><th>What it gives</th></tr></thead>
+    <tbody>
+      {% for source in availability %}
+      <tr>
+        <td class="creator-name">{{ source.name }}</td>
+        <td>
+          {% if source.available %}
+            <span class="status status-keep">ready</span>
+          {% else %}
+            <span class="status status-needs-refresh">not configured</span>
+          {% endif %}
+        </td>
+        <td class="creator-meta">
+          {% if source.available %}
+            {% if source.name == 'youtube' %}
+              Real search and measured metrics. Budget: {{ quota_per_day }} units/day,
+              and a search costs {{ search_cost }} — so about
+              {{ (quota_per_day / search_cost)|int }} searches a day.
+            {% else %}
+              Builds the click-through plan below.
+            {% endif %}
+          {% else %}
+            {{ source.reason }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Paste back what you found</h2>
+  <p class="hint">
+    One per line — a profile URL (the platform is read from it), or a bare handle plus
+    the platform below. Run this as many times as you like; each paste adds to the same
+    pool.
+  </p>
+  <form method="post" action="{{ url_for('discover_collect') }}">
+    {{ hidden_brief(form_values) }}
+    <textarea name="pasted" rows="8" class="paste-box"
+      placeholder="https://www.tiktok.com/@adavance&#10;https://www.youtube.com/@cyokafor&#10;@bo_lindqvist"></textarea>
+    <div class="paste-controls">
+      <label class="field">
+        <span>Platform for bare handles</span>
+        <select name="paste_platform">
+          <option value="">— none (URLs only) —</option>
+          {% for platform in platforms %}
+          <option value="{{ platform.slug }}">{{ platform.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>Which pass found these</span>
+        <input type="text" name="paste_pass" value="manual paste"
+               placeholder="e.g. Pass 1 — #aitools">
+      </label>
+      <button type="submit" class="btn btn-primary">Collect and score</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>The query plan</h2>
+  <p class="hint">
+    Terms marked <span class="tag tag-quiet">spec</span> come from the checked-in skill
+    spec; <span class="tag tag-quiet">brief</span> terms are derived from what you typed.
+    {% for note in plan.notes %}{% if 'written for' in note %}<br><strong>{{ note }}</strong>{% endif %}{% endfor %}
+  </p>
+
+  {% for group in plan.passes %}
+  <h3>{{ group.pass }}</h3>
+  <p class="hint">{{ group.what_to_look_for }}</p>
+  <div class="query-grid">
+    {% for query in group.queries %}
+    <a class="query-link" href="{{ query.url }}" target="_blank" rel="noopener noreferrer">
+      <span class="query-platform">{{ query.platform }}</span>
+      <span class="query-term">{{ '#' if query.kind == 'hashtag' }}{{ query.term }}</span>
+      <span class="tag tag-quiet">{{ query.origin }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<p class="hint">
+  Steps 2 and 3 of the spec are only partly built. What stays manual permanently — and
+  what the paid tiers would add — is in <code>DISCOVERY_PLAN.md</code>.
+</p>
+{% endblock %}

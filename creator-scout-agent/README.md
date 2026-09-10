@@ -191,12 +191,25 @@ The fix is per-platform follower counts, not new bands. Until the schema carries
 `test_d3_saturation_is_a_known_limitation_not_a_surprise` keeps the weakness visible.
 See [`HANDOVER.md`](HANDOVER.md).
 
-## Discovery — the missing first half
+## Discovery — the front half
 
-This app scores creators you already have; it cannot find them. Steps 2 and 3 of the spec
-(the discovery playbook and screening) are not implemented.
+`/discover` builds a click-through **query plan** from the brief: ~100 real searches
+across the spec's passes, on every briefed platform. You run the ones worth running and
+paste handles or profile URLs back; they become candidates in the same pool an upload
+produces, and flow on to judging and scoring.
 
-[`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md) scopes that work: a tiered source inventory from
+It needs no key and costs nothing, because it does not call anything. The spec says
+Step 2 "produces a query plan and candidate pool, not verified metrics" — on TikTok and
+Instagram that is simply true, so the app builds the searches and a person runs them.
+
+**A pasted handle is a lead, not a measurement.** Collected rows arrive `NEEDS_REFRESH`
+until real metrics are attached. The app will not fill them in.
+
+`sources/youtube.py` adds real search and measured metrics on the free YouTube Data API
+— built and tested, but it needs `YOUTUBE_API_KEY` set and **has never made a real
+call**. See `HANDOVER.md`.
+
+[`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md) scopes the rest: a tiered source inventory from
 free to paid, where discovery plugs into the existing engine, a four-phase build order
 with a genuinely useful **$0 tier**, and what stays manual permanently. The headline
 finding is that the free/paid line falls exactly on audience demographics — D1 and D4,
@@ -218,7 +231,7 @@ static/          styles.css
 data/            creators.json, pipeline_intel.json
 reports/         soft_roster_YYYY-MM-DD.csv (generated)
 logs/            scheduler.log (generated)
-tests/           160 tests
+tests/           201 tests
 ../render.yaml   Render blueprint (repo root)
 ```
 

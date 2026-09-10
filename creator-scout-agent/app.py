@@ -30,6 +30,7 @@ import re
 
 import agent_spec
 import creator_pool
+import discovery
 import config
 import scheduler
 import scorer
@@ -231,6 +232,111 @@ def _render_shortlist(brief: dict, result: dict, form_values: dict) -> str:
         },
         form_values=form_values,
     )
+
+
+# ---------------------------------------------------------------------------
+# Screen 0 — discovery
+# ---------------------------------------------------------------------------
+# The app could never find creators, only score ones you already had. This is
+# the front half. It produces CANDIDATES — handles with whatever metrics their
+# source actually returned — which flow into the same pool an upload makes, and
+# on to judging and scoring.
+#
+# The query plan deliberately does not call anything. The spec says Step 2
+# "produces a query plan and candidate pool, not verified metrics", and on
+# platforms with no free API that is simply true, so the app builds real
+# clickable searches and a person runs them.
+def _sources() -> list:
+    from sources import query_plan as qp, youtube as yt
+
+    return [yt.YouTubeSource(), qp.QueryPlanSource()]
+
+
+def _discovery_context(brief: dict) -> dict:
+    from sources import query_plan as qp, youtube as yt
+
+    availability = []
+    for source in _sources():
+        ok, why = source.available()
+        availability.append({"name": source.name, "available": ok, "reason": why})
+
+    return dict(
+        brief=brief,
+        plan=qp.build(brief),
+        availability=availability,
+        quota_per_day=config.YOUTUBE_QUOTA_PER_DAY,
+        search_cost=config.YOUTUBE_QUOTA_COSTS["search"],
+        form_values=_carry_brief(brief),
+        platforms=[
+            {"slug": s, "label": scorer._pretty_platform(s)}
+            for s in config.PLATFORM_SLUGS
+        ],
+    )
+
+
+@app.route("/discover", methods=["GET", "POST"])
+def discover():
+    source = request.form if request.method == "POST" else request.args
+    brief = brief_from_form(source)
+    return render_template("discover.html", collected=None, error=None,
+                           **_discovery_context(brief))
+
+
+@app.post("/discover/collect")
+def discover_collect():
+    """Turn pasted handles into a scoreable pool.
+
+    Every row lands as NEEDS_REFRESH, because a pasted handle is a lead and not a
+    measurement. That is the correct outcome, and Screen 2 says so per row rather
+    than the app quietly filling numbers in.
+    """
+    from sources import query_plan as qp
+
+    form = request.form
+    brief = brief_from_form(form)
+    pasted = form.get("pasted") or ""
+    platform = (form.get("paste_platform") or "").strip().lower()
+
+    rows = qp.parse_pasted(
+        pasted, platform=platform if platform in config.PLATFORM_SLUGS else "",
+        search_source=(form.get("paste_pass") or "manual paste").strip(),
+    )
+    if not rows:
+        return (
+            render_template(
+                "discover.html",
+                collected=None,
+                error=(
+                    "No handles found. Paste one per line — either a profile URL, or "
+                    "a handle plus a platform chosen below (a bare handle with no "
+                    "platform cannot be scored, so it is not guessed)."
+                ),
+                **_discovery_context(brief),
+            ),
+            400,
+        )
+
+    # Fold in anything already collected this session, so several passes build up
+    # one pool rather than each replacing the last.
+    token = (form.get(creator_pool.TOKEN_FIELD) or "").strip()
+    existing: list[dict] = []
+    if token and token != creator_pool.BUNDLED:
+        try:
+            existing, _ = creator_pool.load(token)
+        except creator_pool.PoolError:
+            existing = []
+
+    merged = discovery.merge([*existing, *rows])
+    new_token = creator_pool.save(merged, f"discovered {discovery.today()}")
+
+    result = scorer.build_shortlist(brief, merged)
+    result["pool"] = {
+        "kind": "upload",
+        "filename": f"discovered {discovery.today()}",
+        "count": len(merged),
+        "token": new_token,
+    }
+    return _render_shortlist(brief, result, {creator_pool.TOKEN_FIELD: [new_token]})
 
 
 # ---------------------------------------------------------------------------

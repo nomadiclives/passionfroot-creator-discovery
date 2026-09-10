@@ -1,6 +1,8 @@
 # Discovery — scoping plan
 
-**Status: scoped, not started.** Written 2026-09-10. Nothing here is built.
+**Status: Phases 0-2 built, 3-4 not started.** Written 2026-09-10; phases 0-2 built the
+same night. See `HANDOVER.md` for what was verified and the two roadblocks hit —
+chiefly that the YouTube adapter has never made a real call.
 
 The app scores creators you already have. It cannot find them. Steps 2 and 3 of
 `agents/creator-campaign-scout.md` — the discovery playbook and screening — are the
@@ -214,17 +216,17 @@ half. Discovery becomes another way to produce a pool.
 
 Sized in rough half-days. Each phase is independently shippable and useful alone.
 
-### Phase 0 — the seam · ~1 day · no external calls, no keys
+### Phase 0 — the seam · ~1 day · no external calls, no keys — ✅ **BUILT**
 `discovery.py` with the candidate schema, provenance fields, dedupe, and a fake source
 adapter. Fully testable offline. This is where the never-invent rules get their tests,
 *before* any network code exists to blur them.
 
-### Phase 1 — YouTube · ~1–2 days · free
+### Phase 1 — YouTube · ~1–2 days · free — ⚠️ **BUILT, UNVERIFIED** (needs a key)
 Real search over the spec's Pass 1 keywords, channel and video enrichment, computed
 `resonance_rate`, quota accounting with a visible budget. **This is the phase that proves
 the whole thesis**: a brief in, real sourced creators out, no invented numbers, $0.
 
-### Phase 2 — the manual and proxy bridge · ~1 day · free
+### Phase 2 — the manual and proxy bridge · ~1 day · free — ✅ **BUILT**
 The honest answer to platforms with no free API, and to the spec's judgement-heavy
 passes. The app generates a **click-through query plan** — real hashtag and keyword URLs
 per platform, per pass — the operator runs them in a browser, and pastes handles back

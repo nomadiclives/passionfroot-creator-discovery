@@ -73,8 +73,9 @@ An uploaded list without the four judged sub-scores and a `readiness` call score
 `NEEDS_REVIEW` on every row — the engine will not invent judgement. Supply it on the
 **judging screen** (next section) rather than hand-editing columns.
 
-**What this tool does not do: find creators.** There is no search, no platform API. You
-bring the list; it scores it. That half is now scoped in
+**It can now help you find creators too.** `/discover` builds a click-through query plan
+from your brief and turns pasted handles into scoreable candidates — free, no key. Real
+automated search (YouTube) is built but needs an API key. The full picture is in
 [`DISCOVERY_PLAN.md`](creator-scout-agent/DISCOVERY_PLAN.md) — a tiered source inventory,
 a four-phase build order with a working $0 tier, and an honest account of what stays
 manual.

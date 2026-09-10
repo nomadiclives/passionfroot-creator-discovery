@@ -448,3 +448,63 @@ input[type="file"] {
   margin: 1rem 0 .4rem;
   flex-wrap: wrap;
 }
+
+/* ---------------------------------------------------------------------------
+   Discovery screen
+   The query plan is a dense grid of links a person clicks through in order, so
+   it reads as a worklist rather than prose.
+   --------------------------------------------------------------------------- */
+.paste-box {
+  width: 100%;
+  padding: .6rem;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .85rem;
+  border: 1px solid var(--line, #d8dbe0);
+  border-radius: 6px;
+  resize: vertical;
+}
+.paste-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-top: .8rem;
+}
+.paste-controls .field { display: flex; flex-direction: column; gap: .25rem; }
+.paste-controls .field span { font-size: .78rem; color: #5a6472; }
+.paste-controls select,
+.paste-controls input[type="text"] {
+  padding: .4rem .5rem;
+  font: inherit;
+  border: 1px solid var(--line, #d8dbe0);
+  border-radius: 4px;
+  background: #fff;
+}
+.query-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: .5rem;
+  margin: .6rem 0 1.4rem;
+}
+.query-link {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .7rem;
+  border: 1px solid var(--line, #e3e6ea);
+  border-radius: 6px;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  font-size: .85rem;
+}
+.query-link:hover { border-color: #2f6feb; background: #f7f9ff; }
+.query-platform {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #7a8492;
+  min-width: 4.6rem;
+}
+.query-term { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
