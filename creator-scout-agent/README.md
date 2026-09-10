@@ -15,11 +15,14 @@ pip install -r requirements.txt
 python app.py                 # then open http://localhost:5000
 ```
 
-**This runs locally only.** `app.py` starts Flask's development server on loopback with
-`debug=True`; nothing in this repository deploys it. Making it reachable by anyone else
-needs debug off, a real WSGI server, a port from the environment, and authentication —
-there is none today, and the output contains commercially sensitive judgements about
-named people.
+Debug is off by default; `FLASK_DEBUG=1 python app.py` turns on the reloader for local
+work. Never set it on a deployed service — the Werkzeug debugger executes arbitrary code
+from the browser.
+
+To deploy, the repository root carries a Render blueprint — see
+[Deploying](../README.md#deploying). In production the app is served by gunicorn against
+the `app` object; the `__main__` block is local-only. There is **no authentication**, so
+anyone with the URL sees the full shortlist.
 
 A usage walkthrough — scoring a brief, reading Screen 2, adding a creator, scoring a new
 category — is in the [repository README](../README.md#how-to-use-it). This file is the
@@ -28,7 +31,7 @@ reference.
 | Command | What it does |
 |---|---|
 | `python app.py` | Serves both screens and the schedule console |
-| `python -m pytest tests/` | The test suite — 86 tests |
+| `python -m pytest tests/` | The test suite — 89 tests |
 | `python scheduler.py --once` | One discovery pass now, then exit |
 | `python scheduler.py` | The blocking loop (default Monday 09:00) |
 | `python scheduler.py --status` | Print schedule state as JSON |
@@ -170,7 +173,8 @@ static/          styles.css
 data/            creators.json, pipeline_intel.json
 reports/         soft_roster_YYYY-MM-DD.csv (generated)
 logs/            scheduler.log (generated)
-tests/           86 tests
+tests/           89 tests
+../render.yaml   Render blueprint (repo root)
 ```
 
 Contributor rules — the constraints that break the product if violated — are in

@@ -12,10 +12,8 @@ pip install -r requirements.txt
 python app.py                 # then open http://localhost:5000
 ```
 
-> **There is no hosted version.** This runs on your own machine and is reachable only
-> from it — `app.py` starts Flask's development server bound to loopback. Nothing in this
-> repository deploys it: no Dockerfile, no Procfile, no CI. See
-> [Running it somewhere other than your laptop](#running-it-somewhere-other-than-your-laptop).
+To put it somewhere other people can reach, see [Deploying](#deploying) — the repository
+carries a Render blueprint, so it is a few clicks and no CLI.
 
 ---
 
@@ -98,13 +96,43 @@ python scheduler.py           # blocking loop, default Monday 09:00
 Rosters land in `creator-scout-agent/reports/soft_roster_YYYY-MM-DD.csv`, and the
 `/schedule` console shows cadence, last run, next run and a Run Now button.
 
-### Running it somewhere other than your laptop
+## Deploying
 
-Not set up, and not a one-line change. `app.py` runs Flask's development server with
-`debug=True`, which must never be exposed — its debugger executes arbitrary code. Before
-this is reachable by anyone else it needs, at minimum: debug off, a real WSGI server
-(gunicorn), a port from the environment, and **authentication** — there is none today,
-and the shortlist contains commercially sensitive judgements about named people.
+The repository carries a [Render](https://render.com) blueprint
+([`render.yaml`](render.yaml)), so deploying needs no CLI and no local setup:
+
+1. Sign in at [render.com](https://render.com) with the GitHub account that owns this
+   repository.
+2. **New → Blueprint**, pick `passionfroot-creator-discovery`, and **Apply**.
+3. Render reads `render.yaml`, installs the dependencies, starts the app under gunicorn,
+   and gives you a public `https://<name>.onrender.com` URL. First build takes a few
+   minutes; after that, pushes to the default branch redeploy automatically.
+
+Verified locally under the exact command Render runs
+(`gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`): both screens, the CSV export, the
+schedule console and Run Now all behave identically to the development server.
+
+### Four things to know about the free tier
+
+- **It sleeps.** After ~15 minutes idle the service spins down, and the next request
+  takes roughly 50 seconds to wake it. If you are sending the link to someone, open it
+  yourself a minute beforehand.
+- **Scheduled runs do not fire.** The web service serves requests; nothing runs the
+  blocking scheduler loop. **Run Now** on `/schedule` works, and writes a roster. Actual
+  cadence needs a background worker or a cron job, which the free plan does not include.
+- **The filesystem is ephemeral.** Generated rosters, logs and schedule state reset on
+  every deploy and restart. The creator data is read from the repository, so it always
+  survives; anything the app writes does not.
+- **There is no authentication.** Anyone with the URL sees the full shortlist, including
+  the notes. `/healthz` is public too, though it exposes nothing beyond whether the spec
+  and config still agree.
+
+### Running it in debug
+
+`FLASK_DEBUG=1 python app.py` enables the reloader locally. Debug is **off by default**
+and must be asked for, because the Werkzeug debugger executes arbitrary code from the
+browser — a debug default that survived to a public host would be a remote shell. Never
+set `FLASK_DEBUG` on a deployed service.
 
 Full documentation: [`creator-scout-agent/README.md`](creator-scout-agent/README.md).
 

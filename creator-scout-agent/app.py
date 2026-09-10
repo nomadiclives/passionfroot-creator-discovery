@@ -25,6 +25,7 @@ sourced.
 
 from __future__ import annotations
 
+import os
 import re
 
 import agent_spec
@@ -272,6 +273,21 @@ def healthz():
     )
 
 
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 if __name__ == "__main__":
+    # Local development entry point only. In production the app is served by
+    # gunicorn against the `app` object above (see render.yaml), so none of
+    # this runs there.
+    #
+    # Debug defaults to OFF and must be asked for. The Werkzeug debugger
+    # executes arbitrary code from the browser, so a debug default that
+    # survives to a deployed host is a remote shell, not a convenience.
     scheduler.configure_logging(verbose=False)
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "5000")),
+        debug=_env_flag("FLASK_DEBUG"),
+    )

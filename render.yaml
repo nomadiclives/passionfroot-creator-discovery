@@ -1,0 +1,25 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repository.
+# Render reads this file, builds, and serves the app at a public URL.
+#
+# The app is a single stateless web service. It reads data/creators.json from
+# the repo and writes only generated artifacts (soft rosters, scheduler state,
+# logs), so an ephemeral filesystem costs nothing but those artifacts, which
+# reset on each deploy.
+services:
+  - type: web
+    name: creator-campaign-scout
+    runtime: python
+    plan: free
+    rootDir: creator-scout-agent
+    buildCommand: pip install -r requirements.txt
+    # Two workers is plenty: every request is CPU-bound scoring over 25 rows in
+    # memory, with no database and no outbound calls while enrichment is off.
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60 --access-logfile -
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # Never set FLASK_DEBUG here. The Werkzeug debugger executes arbitrary
+      # code from the browser; on a public URL that is a remote shell.

@@ -2,7 +2,7 @@
 
 **Status: handed over 2026-09-10.** Feature-complete — engine, web app, scheduler and
 enrichment stub all built, exercised in a real browser, and merged to `main`.
-**Test suite:** `python -m pytest tests/` — 86 passing.
+**Test suite:** `python -m pytest tests/` — 89 passing.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
 file is a blocker on running the app. What remains is listed under **Still open**; the
@@ -34,7 +34,7 @@ it is the single most likely thing to be mistaken for a bug.
 | Pipeline intel | `data/pipeline_intel.json` | ✅ live campaigns only; test briefs live in `tests/fixtures/` |
 | Empty-roster explanation | `templates/results.html` | ✅ Screen 2 leads with why a roster is empty, not just per-row |
 | READMEs | `README.md`, `../README.md` | ✅ project and repo root |
-| Tests | `tests/` | ✅ 86 passing |
+| Tests | `tests/` | ✅ 89 passing |
 
 ### The data is real now
 

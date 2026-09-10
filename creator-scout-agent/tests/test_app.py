@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import app as flask_app
 import config
 import scorer
+from flask import Flask
 
 
 @pytest.fixture()
@@ -256,3 +257,53 @@ def test_spec_markdown_is_rendered_not_escaped_into_the_page(client):
     body = client.get("/").get_data(as_text=True)
     assert "**Never fabricate" not in body
     assert "<strong>Never fabricate creator metrics</strong>" in body
+
+
+# ---------------------------------------------------------------------------
+# Deployment surface
+#
+# Two properties that fail silently: gunicorn cannot find the app, or debug
+# reaches a public host. The first breaks the deploy loudly at boot; the second
+# does not break anything at all, which is why it needs a test.
+# ---------------------------------------------------------------------------
+def test_gunicorn_entry_point_resolves():
+    """render.yaml runs `gunicorn app:app` — that name must exist."""
+    import app as module
+
+    assert isinstance(module.app, Flask)
+
+
+def test_debug_is_off_unless_explicitly_asked_for(monkeypatch):
+    """The Werkzeug debugger executes arbitrary code from the browser.
+
+    A debug default that survives to a public host is a remote shell, so debug
+    must be opt-in through the environment and never the default.
+    """
+    assert flask_app.app.debug is False
+
+    for value in ("", "0", "false", "no", "off"):
+        monkeypatch.setenv("FLASK_DEBUG", value)
+        assert flask_app._env_flag("FLASK_DEBUG") is False, f"{value!r} enabled debug"
+
+    for value in ("1", "true", "TRUE", "yes", "on"):
+        monkeypatch.setenv("FLASK_DEBUG", value)
+        assert flask_app._env_flag("FLASK_DEBUG") is True
+
+    monkeypatch.delenv("FLASK_DEBUG", raising=False)
+    assert flask_app._env_flag("FLASK_DEBUG") is False
+
+
+def test_the_blueprint_matches_how_the_app_is_actually_served():
+    """render.yaml drifting from the code is a deploy that boots to a 404."""
+    import re
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    blueprint = open(os.path.join(root, "render.yaml"), encoding="utf-8").read()
+
+    assert "gunicorn app:app" in blueprint
+    assert re.search(r"rootDir:\s*creator-scout-agent", blueprint)
+    # The health check must point at a route that exists.
+    health = re.search(r"healthCheckPath:\s*(\S+)", blueprint).group(1)
+    assert flask_app.app.test_client().get(health).status_code == 200
+    # Debug must never be turned on from the blueprint.
+    assert "FLASK_DEBUG" not in blueprint.split("# Never set")[0]
