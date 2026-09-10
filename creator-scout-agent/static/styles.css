@@ -376,3 +376,16 @@ code {
   white-space: nowrap;
 }
 .tier { white-space: nowrap; }
+
+/* An informational alert, not a failure: the engine declining to guess is the
+   product working. Styled to read as an explanation rather than an error. */
+.alert-info {
+  background: var(--blue-soft);
+  border-color: #c5d8f7;
+  color: var(--ink);
+}
+/* Only the heading is a block — inline <strong> inside the body text (the
+   category names) must stay inline or the sentence breaks apart. */
+.alert-info > strong { display: block; margin-bottom: 6px; color: var(--blue); }
+.alert-info p { margin: 8px 0 0; }
+.alert-info p:first-of-type { margin-top: 6px; }

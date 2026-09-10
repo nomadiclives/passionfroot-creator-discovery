@@ -658,6 +658,9 @@ def score_creator(creator: dict, criteria: dict) -> dict:
             f"scores against “{brief_category}” — re-judge before use",
             notes=d3_notes,
         ))
+        # Machine-readable, so callers can explain an empty roster without
+        # parsing the reason string.
+        result["readiness_mismatch"] = judged_against
         return result
 
     role = assign_role(readiness)
@@ -815,12 +818,19 @@ def build_shortlist(brief: dict, creators: str | Iterable[dict]) -> dict:
     table = shortlist + overflow + review + calibration + refresh + dropped
     assert len(table) == len(scored), "a creator fell out of the table"
 
+    # Rows held back because their readiness was judged against another
+    # category. This is the most common reason a roster comes back empty, and
+    # an empty roster with no explanation reads as a broken run.
+    mismatched = [c for c in review if c.get("readiness_mismatch")]
+
     return {
         "criteria": criteria,
         "shortlist": shortlist,
         "table": table,
         "needs_refresh": refresh,
         "needs_review": review,
+        "readiness_mismatch": mismatched,
+        "judged_categories": sorted({c["readiness_mismatch"] for c in mismatched}),
         "needs_calibration": calibration,
         "dropped": dropped,
         "composition": composition_summary(shortlist, criteria),

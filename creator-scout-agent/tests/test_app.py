@@ -127,6 +127,46 @@ def test_changing_the_category_changes_the_roles_not_just_the_heading(client):
     assert "re-judge before use" in body
 
 
+def test_an_empty_roster_explains_itself_instead_of_looking_broken(client):
+    """The guard's most confusing symptom is a blank shortlist.
+
+    The per-row reason is not enough: it sits in a greyed table nobody reads
+    when the thing above it is empty. The page must say, at the top, that this
+    is a refusal rather than a failure — and what to do about it.
+    """
+    form = {**BRIEF_FORM, "category": "student productivity hardware"}
+    body = client.post("/shortlist", data=form).get_data(as_text=True)
+
+    assert "this is not an empty result" in body
+    assert "held back for re-judgement" in body
+    # Names both sides of the mismatch, so the cause is not a guess.
+    assert "AI app-building tools" in body
+    # And says how to fix it.
+    assert "readiness_category" in body
+
+
+def test_the_explanation_stays_out_of_the_way_on_a_normal_run(client):
+    body = client.post("/shortlist", data=BRIEF_FORM).get_data(as_text=True)
+    assert "held back for re-judgement" not in body
+    assert "Nothing was shortlisted" not in body
+
+
+def test_an_empty_shortlist_from_another_cause_still_explains_itself(client):
+    """Not every empty roster is the readiness guard.
+
+    A LinkedIn-only brief drops the whole pool on the briefed-platform check —
+    a real emptiness with a different cause, which must not borrow the
+    readiness explanation.
+    """
+    form = {**BRIEF_FORM, "platforms": ["linkedin"]}
+    body = client.post("/shortlist", data=form).get_data(as_text=True)
+
+    assert "Nothing was shortlisted" in body
+    assert "held back for re-judgement" not in body, (
+        "an unrelated emptiness must not be blamed on the readiness guard"
+    )
+
+
 def test_shortlist_survives_a_mostly_empty_form(client):
     """A partly filled form falls back to the campaign slot rather than erroring."""
     response = client.post("/shortlist", data={"brand_name": "Craftly"})

@@ -32,6 +32,38 @@
   </div>
 </section>
 
+{% if result.readiness_mismatch %}
+<div class="alert alert-info">
+  <strong>
+    {{ result.readiness_mismatch|length }} creator{{ "s" if result.readiness_mismatch|length != 1 }}
+    held back for re-judgement — this is not an empty result.
+  </strong>
+  <p>
+    Campaign role comes from Category Readiness, and a readiness judgement is evidence
+    about <em>one named category</em>. This pool was judged against
+    {% for judged in result.judged_categories %}<strong>{{ judged }}</strong>{% if not loop.last %}, {% endif %}{% endfor %},
+    and this brief scores against <strong>{{ criteria.category }}</strong>. Carrying those
+    judgements across would assign confident roles from evidence about a different
+    product — the same thing as inventing a metric, so the engine refuses.
+  </p>
+  <p>
+    To score this category, judge the pool against it: set <code>readiness</code>
+    (<code>unexposed</code> / <code>exposed</code> / <code>adopted</code>) and
+    <code>readiness_category</code> on each row in <code>data/creators.json</code>.
+    Everything else about these creators — metrics, sub-scores, gates — is unaffected.
+  </p>
+</div>
+{% elif not result.shortlist %}
+<div class="alert alert-info">
+  <strong>Nothing was shortlisted.</strong>
+  <p>
+    All {{ counts.evaluated }} creators were evaluated and none came through: see the
+    status on each row below for why. Common causes are a follower band or platform set
+    that excludes the pool, or metrics that have not been sourced yet.
+  </p>
+</div>
+{% endif %}
+
 <section class="counts">
   <div class="count count-keep"><b>{{ counts.shortlisted }}</b><span>Shortlisted</span></div>
   <div class="count count-review"><b>{{ counts.needs_review }}</b><span>Needs review</span></div>
