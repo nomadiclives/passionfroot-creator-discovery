@@ -119,19 +119,54 @@ brief, not just YouTube. What they do **not** give: audience demographics.
 
 ### Tier 3 — panel tools · $199–299/mo, the only honest source of D1 and D4
 
-| Vendor | Entry price | Notes |
-|---|---|---|
-| **Modash** | **$199/mo** | 380M profiles; transparent pricing, self-serve trial, no sales call |
-| HypeAuditor | $299/mo billed annually | strongest fraud/authenticity detection; API costs extra |
-| IQFluence | quote | 375M profiles, API included |
-| Favikon | €99/mo | ⚠️ **API is Enterprise-tier only** — see below |
+| Vendor | Entry price | API on a published tier? | Notes |
+|---|---|---|---|
+| **Modash** | **$199/mo** | ✅ yes | 380M profiles; self-serve trial, no sales call |
+| HypeAuditor | $299/mo billed annually | ➖ costs extra | strongest fraud / authenticity detection |
+| IQFluence | quote | ✅ included | 375M profiles |
+| **Favikon** | **$199/mo** Core · $299 Pro | ❌ quote-only | **best-in-class for LinkedIn / B2B** — see below |
 
-⚠️ **`config.API_PROVIDER` currently defaults to `"favikon"`, which is the one provider
-whose API you probably cannot turn on.** Favikon's published plans start at €99/mo but
-API access sits on Enterprise at custom pricing. Modash publishes $199/mo with a
-self-serve trial. **Recommend flipping the default to `modash`** and treating Favikon as
-a UI-only research tool. This is a one-line change to a stale assumption and worth doing
-whether or not discovery gets built.
+⚠️ *Prices checked 2026-09-10 against third-party aggregators (Capterra, G2, review
+sites) because `favikon.com` is unreachable from this sandbox. They disagree with each
+other on detail — **confirm on the vendor's own pricing page before committing budget.***
+
+#### The `API_PROVIDER` default
+
+`config.API_PROVIDER` defaults to `"favikon"`, and that is the wrong default for the
+**automated enrichment seam**: Favikon's API is quote-only on every source checked, with
+no self-serve API product, while Modash publishes an API on its $199 tier.
+**Recommend flipping the default to `modash`.**
+
+#### But Favikon is the answer to a different, real problem
+
+Favikon is consistently rated the strongest tool for **LinkedIn and B2B creator
+intelligence** — which is precisely where this codebase is blocked:
+
+- `config.INSTRUMENTS["linkedin"]["bands"]` is `None`, so LinkedIn returns
+  `NEEDS_CALIBRATION` and cannot be scored at all.
+- `data/creators.json` carries a **5-creator LinkedIn cohort with no metrics**, sitting
+  there waiting for exactly this.
+- "LinkedIn calibration" has been a standing open item in `HANDOVER.md` since the
+  original build.
+
+Neither Modash nor the scraping tier covers LinkedIn well. Favikon does.
+
+**And this does not need the API.** Fitting LinkedIn bands is a *one-time data
+collection task*, not an integration: collect real interaction rates for a few dozen
+LinkedIn creators once, fit the bands, delete the uncalibrated branch. That is Favikon's
+**UI** on the $199 Core plan, used for an afternoon — no quote, no sales call, no
+adapter to build and maintain.
+
+So the recommendation splits rather than reverses:
+
+| Use | Tool | Why |
+|---|---|---|
+| Automated enrichment (`API_PROVIDER`) | **Modash** | self-serve API at a published price |
+| LinkedIn band calibration, one-off | **Favikon UI** | best LinkedIn coverage; no API needed |
+| Fraud / authenticity depth, if it becomes a priority | HypeAuditor | strongest on the authenticity gate |
+
+Favikon also prices in credits ("favicoins" — enrich ≈ 3, refresh ≈ 0.5) rather than flat
+calls, which is worth modelling before assuming a monthly seat covers a sourcing run.
 
 ---
 
@@ -250,7 +285,11 @@ actually need before you buy a seat.
    early and cheaply de-risk D1/D4. If nothing is budgeted, Phase 2 becomes the ceiling
    and should be built properly rather than as a stopgap.
 3. **Flip `API_PROVIDER` to `modash`?** Recommend yes regardless — see §2 Tier 3.
-4. **Volume target.** "15–20 shortlisted" implies sourcing maybe 200–400 candidates per
+4. **Is LinkedIn in scope for a real campaign?** If yes, a Favikon Core seat used for one
+   afternoon of manual collection would unblock the uncalibrated LinkedIn instrument and
+   the 5-creator cohort — cheaper and faster than any integration. If LinkedIn is not
+   coming up, leave it uncalibrated and say so on screen, which the app already does.
+5. **Volume target.** "15–20 shortlisted" implies sourcing maybe 200–400 candidates per
    campaign. That is comfortably inside YouTube's free quota and cheap on a scraping
    tier. Confirm, because it is the number that decides whether any of this needs a paid
    plan at all.
