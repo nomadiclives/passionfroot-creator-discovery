@@ -1,8 +1,10 @@
 # passionfroot-creator-discovery
 
-Creator discovery and scoring for paid UGC and awareness campaigns. Give it a campaign
+A scoring engine for creator shortlists — it ranks and role-assigns creators you've already sourced. It does not find them. Give it a campaign
 brief; it returns a scored, role-assigned creator shortlist ready for outreach — with its
 gaps labelled rather than filled in.
+
+Phase 2 includes discovery too, but this requires API access to paid tools.
 
 The working project lives in **[`creator-scout-agent/`](creator-scout-agent/)**.
 
@@ -12,9 +14,7 @@ pip install -r requirements.txt
 python app.py                 # then open http://localhost:5000
 ```
 
-**Live:** the app is deployable on Render from [`render.yaml`](render.yaml), but no
-public URL is recorded here yet — paste yours from the Render dashboard over this line
-once the service is up.
+**Live:** https://creator-campaign-scout.onrender.com/
 
 A free-tier service sleeps after ~15 minutes idle, so the first request takes about 50
 seconds to wake. See [Deploying](#deploying) for how it is built and what the free tier
