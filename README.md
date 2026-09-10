@@ -9,9 +9,102 @@ The working project lives in **[`creator-scout-agent/`](creator-scout-agent/)**.
 ```bash
 cd creator-scout-agent
 pip install -r requirements.txt
-python app.py                 # http://localhost:5000
-python -m pytest tests/       # 86 tests
+python app.py                 # then open http://localhost:5000
 ```
+
+> **There is no hosted version.** This runs on your own machine and is reachable only
+> from it — `app.py` starts Flask's development server bound to loopback. Nothing in this
+> repository deploys it: no Dockerfile, no Procfile, no CI. See
+> [Running it somewhere other than your laptop](#running-it-somewhere-other-than-your-laptop).
+
+---
+
+## How to use it
+
+### Score a campaign brief
+
+1. **Start it.** `python app.py`, then open <http://localhost:5000>.
+2. **Fill in the brief** (Screen 1). It is pre-filled with the Craftly campaign, so you
+   can change one field and go. The field that matters most is **Product category** —
+   campaign role is assigned from how ready an audience is *for that category*, so
+   changing it changes the roles, not just the heading.
+3. **Build shortlist** → Screen 2.
+4. **Export CSV** when you are happy with it. The export re-runs the same brief through
+   the same engine, so the file always matches what you just read.
+
+### Reading Screen 2
+
+| Panel | What it tells you |
+|---|---|
+| **Count strip** | Shortlisted vs. held back, at a glance |
+| **Locked criteria** | Exactly what the brief was interpreted as — check this first if the output surprises you |
+| **Campaign composition** | Role counts against target, total reach, modelled budget |
+| **Every creator evaluated** | Every row, scored or not, with its reason and its source |
+| **Outreach angles** | A per-creator pitch angle, keyed to the assigned role |
+
+Every creator carries a status, and four of the five mean *the engine declined to
+produce a number it did not have*:
+
+| Status | What it means | What to do |
+|---|---|---|
+| `Keep` | Scored and shortlisted | Take it to outreach |
+| `Drop` | Failed a gate or an exclusion | Read the reason; usually correct and final |
+| `NEEDS_REFRESH` | A required metric is missing | Source the metric — never estimate it |
+| `NEEDS_REVIEW` | A human judgement is missing, or was made about a different category | Judge it (see below) |
+| `NEEDS_CALIBRATION` | That platform's scoring bands have not been fitted yet | Collect real rates for that platform and fit bands |
+
+**An empty shortlist is usually not a bug.** The most common cause is a brief in a
+category the creator pool was never judged against — Screen 2 says so at the top when it
+happens, and names both categories.
+
+### Add a creator
+
+Add a row to `creator-scout-agent/data/creators.json`. Required: `name`, `platform`,
+`followers`, `resonance_rate`. Also record `source`, `sourced_from` and `sourced_date` —
+provenance is shown in the UI, and a row without it cannot be audited later.
+
+A creator will come back `NEEDS_REVIEW` until it also carries the four human-judged
+sub-scores (`audience_match_score`, `content_match_score`, `geo_match_score`,
+`commercial_maturity_score`, each 1–5) and a readiness call. That is deliberate: the
+engine will not invent judgement any more than it will invent a metric.
+
+### Score a new product category
+
+Readiness is judged against one named category, so a brief outside
+`AI app-building tools` will return the whole pool for re-judgement. To score a new
+category, set both fields on each creator row:
+
+```json
+"readiness": "exposed",
+"readiness_category": "your new category"
+```
+
+`unexposed` → Awareness · `exposed` → Credibility · `adopted` → Conversion.
+
+Everything else about a creator — metrics, sub-scores, gates — is unaffected, so this is
+the only work a new category requires.
+
+### Pre-build rosters on a schedule
+
+Add upcoming briefs to `creator-scout-agent/data/pipeline_intel.json` (`id`,
+`brand_name` and `category` are required; the rest falls back to the campaign defaults),
+then:
+
+```bash
+python scheduler.py --once    # one pass now
+python scheduler.py           # blocking loop, default Monday 09:00
+```
+
+Rosters land in `creator-scout-agent/reports/soft_roster_YYYY-MM-DD.csv`, and the
+`/schedule` console shows cadence, last run, next run and a Run Now button.
+
+### Running it somewhere other than your laptop
+
+Not set up, and not a one-line change. `app.py` runs Flask's development server with
+`debug=True`, which must never be exposed — its debugger executes arbitrary code. Before
+this is reachable by anyone else it needs, at minimum: debug off, a real WSGI server
+(gunicorn), a port from the environment, and **authentication** — there is none today,
+and the shortlist contains commercially sensitive judgements about named people.
 
 Full documentation: [`creator-scout-agent/README.md`](creator-scout-agent/README.md).
 

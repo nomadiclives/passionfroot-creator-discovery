@@ -12,8 +12,18 @@ rubric behind every number on screen.
 
 ```bash
 pip install -r requirements.txt
-python app.py                 # http://localhost:5000
+python app.py                 # then open http://localhost:5000
 ```
+
+**This runs locally only.** `app.py` starts Flask's development server on loopback with
+`debug=True`; nothing in this repository deploys it. Making it reachable by anyone else
+needs debug off, a real WSGI server, a port from the environment, and authentication —
+there is none today, and the output contains commercially sensitive judgements about
+named people.
+
+A usage walkthrough — scoring a brief, reading Screen 2, adding a creator, scoring a new
+category — is in the [repository README](../README.md#how-to-use-it). This file is the
+reference.
 
 | Command | What it does |
 |---|---|
