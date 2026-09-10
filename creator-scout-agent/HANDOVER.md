@@ -1,7 +1,8 @@
 # Handover — Creator Campaign Scout Agent
 
-**Status: handed over 2026-09-10.** Feature-complete — engine, web app, scheduler and
-enrichment stub all built, exercised in a real browser, and merged to `main`.
+**Status: handed over 2026-09-10.** Feature-complete, merged to `main`, and **deployed
+on Render** from `render.yaml` — engine, web app, scheduler and enrichment stub all built
+and exercised in a real browser.
 **Test suite:** `python -m pytest tests/` — 89 passing.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
@@ -33,7 +34,8 @@ it is the single most likely thing to be mistaken for a bug.
 | Enrichment stub | `enricher.py` | ✅ inert by default; gaps-only merge; UNVERIFIED on failure |
 | Pipeline intel | `data/pipeline_intel.json` | ✅ live campaigns only; test briefs live in `tests/fixtures/` |
 | Empty-roster explanation | `templates/results.html` | ✅ Screen 2 leads with why a roster is empty, not just per-row |
-| READMEs | `README.md`, `../README.md` | ✅ project and repo root |
+| READMEs | `README.md`, `../README.md` | ✅ project and repo root, with a usage walkthrough |
+| Deployment | `../render.yaml` | ✅ Render blueprint; gunicorn, `/healthz` check, debug off |
 | Tests | `tests/` | ✅ 89 passing |
 
 ### The data is real now
@@ -191,9 +193,41 @@ Flask test client, which proves routes answer but not that pages render):
 The only console error in the browser run was a 404 for `/favicon.ico`. No JS errors —
 there is no JavaScript.
 
+## Deployment
+
+Live on Render's free tier, built from `render.yaml` at the repository root. Render
+installs from `creator-scout-agent/`, serves the app under
+`gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`, and health-checks `/healthz`.
+Pushes to the default branch redeploy automatically.
+
+Verified locally under that exact gunicorn command — both screens, static assets, CSV
+export, the schedule console and Run Now behave identically to the development server.
+Three tests pin the deploy surface so it cannot rot silently: the gunicorn entry point
+resolves, debug is off unless `FLASK_DEBUG` asks for it, and the blueprint's start
+command, root directory and health check still match the code.
+
+**`debug=True` was removed as a default.** Harmless on loopback, a remote shell on a
+public URL — the Werkzeug debugger executes arbitrary code from the browser. Never set
+`FLASK_DEBUG` on a deployed service.
+
+What the free tier does, all of it expected rather than broken:
+
+| Behaviour | Consequence |
+|---|---|
+| Sleeps after ~15 min idle | First request takes ~50s to wake. Open the link yourself before sharing it. |
+| No background worker | The scheduler's blocking loop never fires. **Run Now** works and writes a roster. |
+| Ephemeral filesystem | Generated rosters, logs and schedule state reset on every deploy. Creator data is read from the repo, so it always survives. |
+| No authentication | Anyone with the URL sees the full shortlist, notes included. |
+
+The last row is a deliberate trade for a demo, not an oversight. Before this is used in
+anger it needs auth, and the repository — which carries the sourced creator data — should
+be private.
+
+---
+
 ## Still open
 
-Nothing here blocks running the app.
+Nothing here blocks running the app, and the app is deployed.
 
 | Item | Why it is still open |
 |---|---|
@@ -201,7 +235,9 @@ Nothing here blocks running the app.
 | **LinkedIn calibration** | `config.INSTRUMENTS["linkedin"]["bands"]` is `None`, so LinkedIn returns `NEEDS_CALIBRATION`. The 5-creator cohort in `data/creators.json` has no metrics yet — collect interaction rates for it, fit bands, then delete the uncalibrated branch. |
 | **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
 | **Judging the pool for a second category** | `data/pipeline_intel.json` holds live campaigns only, and every readiness judgement in `data/creators.json` is against `AI app-building tools`. A brief in any other category needs the pool judged against it (`readiness` + `readiness_category` per row) before it can score. |
-| **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. |
+| **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. On Render's free tier it never will — that needs a background worker or a cron job on a paid plan. |
+| **Authentication** | There is none. Anyone with the deployed URL sees the full shortlist, including the commercial notes on named creators. Fine for a demo, not for real use. |
+| **End-to-end check of the live deploy** | The build and the gunicorn command are verified locally; the deployed URL itself has not been walked through screen by screen. |
 | **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |
 
 ---

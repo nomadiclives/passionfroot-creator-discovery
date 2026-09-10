@@ -12,8 +12,11 @@ pip install -r requirements.txt
 python app.py                 # then open http://localhost:5000
 ```
 
-To put it somewhere other people can reach, see [Deploying](#deploying) — the repository
-carries a Render blueprint, so it is a few clicks and no CLI.
+**Live:** deployed on Render — `https://<your-service>.onrender.com`
+<!-- ^ replace with the real URL from your Render dashboard -->
+
+It sleeps after ~15 minutes idle, so the first request takes about 50 seconds to wake.
+See [Deploying](#deploying) for how it is built and what the free tier does.
 
 ---
 
@@ -98,15 +101,18 @@ Rosters land in `creator-scout-agent/reports/soft_roster_YYYY-MM-DD.csv`, and th
 
 ## Deploying
 
-The repository carries a [Render](https://render.com) blueprint
-([`render.yaml`](render.yaml)), so deploying needs no CLI and no local setup:
+Deployed on [Render](https://render.com) from the blueprint at
+([`render.yaml`](render.yaml)) — no CLI, no local setup. To deploy it again from a fork:
 
-1. Sign in at [render.com](https://render.com) with the GitHub account that owns this
+1. Sign in at [render.com](https://render.com) with the GitHub account that owns the
    repository.
 2. **New → Blueprint**, pick `passionfroot-creator-discovery`, and **Apply**.
 3. Render reads `render.yaml`, installs the dependencies, starts the app under gunicorn,
    and gives you a public `https://<name>.onrender.com` URL. First build takes a few
    minutes; after that, pushes to the default branch redeploy automatically.
+
+Render deploys the repository's **default branch** — check that it is the branch you
+expect before wondering why a push did not appear.
 
 Verified locally under the exact command Render runs
 (`gunicorn app:app --bind 0.0.0.0:$PORT --workers 2`): both screens, the CSV export, the
