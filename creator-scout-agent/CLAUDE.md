@@ -1,0 +1,116 @@
+# Creator Campaign Scout Agent
+
+Campaign-configurable creator discovery, scoring, and shortlisting app. Implements the
+`creator-campaign-scout` skill (Steps 1, 4, 5, 5a, 6) as a working web app.
+
+## Stack
+
+- **Backend:** Python 3.11 + Flask (`app.py`)
+- **Frontend:** Plain HTML + vanilla JS, server-rendered via Jinja2. **No framework** —
+  no React, no Vue, no build step. One stylesheet (`static/styles.css`).
+- **Data:** CSV in / CSV out. No database.
+
+## Commands
+
+```bash
+python app.py                 # starts Flask on http://localhost:5000
+python -m pytest tests/       # run the test suite
+python scheduler.py --once    # run one discovery pass immediately
+python scheduler.py           # run the blocking scheduler loop
+```
+
+Install deps with `pip install -r requirements.txt`.
+
+## Hard constraints
+
+### 1. Never fabricate creator metrics
+This is the top rule of the skill and the top rule of this codebase. LLMs hallucinate
+follower counts, engagement rates, and handles. If a metric is not present in the input
+data or returned by a verified enrichment call:
+
+- Do **not** guess, interpolate, or fill with a plausible-looking number.
+- Emit `None` / empty, and flag the row `NEEDS_REFRESH`.
+- A shortlist with honest gaps is more useful than a clean one with invented numbers.
+
+`scorer.py` enforces this: any creator missing a field in `REQUIRED_FIELDS` is scored
+`NEEDS_REFRESH` and excluded from the ranked shortlist. Never "fix" a `NEEDS_REFRESH`
+row by inventing data — refresh it from a real source.
+
+Every metric carries a `source` field (`manual`, `favikon`, `modash`). Rows falling back
+to manual values after a failed API call are additionally flagged `UNVERIFIED`.
+
+### 2. The scoring formula must match `creator-campaign-scout.md` exactly
+Do **not** modify the weights.
+
+```
+score = (audience_match   * 0.30)
+      + (content_match    * 0.25)
+      + (engagement_score * 0.25)
+      + (geo_score        * 0.10)
+      + (commercial_maturity * 0.10)
+```
+
+Sub-scores are 1-5. The skill states its rubric in points out of 100
+(D1 30 / D2 25 / D3 25 / D4 10 / D5 10); the two are the same model at different
+scales, and `score_100 == weighted_score * 20` exactly. `scorer.py` asserts this
+identity. Tier bands (Tier 1 75-100, Tier 2 55-74, Tier 3 35-54) read off `score_100`.
+
+### 3. Campaign role is assigned from the D1/D2 relationship, not from total score
+Role and tier are independent dimensions. A Tier 1 creator can be an Awareness
+candidate; a Tier 2 creator can be a Credibility anchor.
+
+```
+Audience >= 4 AND Content >= 4  -> Credibility
+Audience >= 4 AND Content <  4  -> Awareness
+Audience <  4 AND Content >= 4  -> Conversion
+Audience <  4 AND Content <  4  -> weaker quadrant; falls to the stronger of the two
+                                   dimensions (ties -> Awareness). See ROLE_RULES in scorer.py.
+```
+
+The **student-AI gap** is a structural constraint, not a sourcing failure. If the
+shortlist skews to Awareness and Conversion with few Credibility anchors, report that
+plainly — never rebalance by forcing creators into roles they don't fit.
+
+### 4. Engagement rate is a gate, not just a scorer
+Below-floor creators are ineligible regardless of other dimensions (`Status = Drop`).
+Floors: 3.5% TikTok/Instagram, 1.5% YouTube. Do not override this in the scoring model.
+
+### 5. CPM is calculated from views, not followers
+`avg_views * SPONSOR_DECAY (0.85)` is the reach denominator. Never use follower count.
+
+## Enrichment toggle
+
+`config.py` -> `ENRICHMENT_ENABLED` (default `False`).
+Also `API_PROVIDER` (`"favikon"` or `"modash"`) and `API_KEY` (empty).
+`enricher.py` is a wired-but-inert stub: with the toggle off it returns input data
+unchanged with `source='manual'`. Never commit a real API key.
+
+## Layout
+
+```
+config.py       campaign defaults, weights, rubric thresholds, toggles
+scorer.py       the scoring engine — Steps 1, 4, 5, 5a of the skill
+enricher.py     API enrichment stub (Favikon / Modash), off by default
+scheduler.py    weekly soft-roster discovery loop
+app.py          Flask API + server-rendered UI
+templates/      index.html (Screen 1 brief), results.html (Screen 2 shortlist),
+                schedule.html (schedule console)
+static/         styles.css
+data/           sample_creators.csv, pipeline_intel.json
+reports/        soft_roster_YYYY-MM-DD.csv output (auto-created)
+logs/           scheduler.log (auto-created)
+```
+
+## Verification after each build step
+
+After any change, actually run the app and confirm the UI renders — do not assume:
+
+1. `python app.py` starts with no traceback.
+2. `GET localhost:5000` renders Screen 1 with every form field present.
+3. Submitting the brief renders Screen 2 with a populated, scored table.
+4. Spot-check the weighted score of at least 3 creators by hand against the formula.
+5. Export to CSV downloads a valid file with a header row.
+6. `GET /schedule` (and `/api/schedule`) returns a valid JSON response.
+
+`python -m pytest tests/` covers 1, 3, 4, 6 and the formula identity; the browser
+checks still matter for 2 and 5.

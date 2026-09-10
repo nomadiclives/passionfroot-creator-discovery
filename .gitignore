@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+creator-scout-agent/reports/*.csv
+creator-scout-agent/logs/*.log
+creator-scout-agent/data/schedule_state.json
