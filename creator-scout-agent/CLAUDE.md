@@ -3,6 +3,13 @@
 Campaign-configurable creator discovery, scoring, and shortlisting app. Implements the
 `creator-campaign-scout` skill (Steps 1, 4, 5, 5a, 6) as a working web app.
 
+**The spec of record is `agents/creator-campaign-scout.md`** — a verbatim copy of the
+skill, checked in so the code and the spec it implements live together. `agent_spec.py`
+loads it at runtime, so the app can show a Creator Partnership Manager the exact criteria
+and rubric behind a shortlist. Read it before changing anything in `scorer.py`. If you
+edit the weights or rubric, edit the spec too — `agent_spec.check_weights_documented()`
+fails the test suite when the two drift apart.
+
 ## Stack
 
 - **Backend:** Python 3.11 + Flask (`app.py`)
@@ -88,6 +95,8 @@ unchanged with `source='manual'`. Never commit a real API key.
 ## Layout
 
 ```
+agents/         creator-campaign-scout.md — the skill spec, verbatim, spec of record
+agent_spec.py   loads and parses that spec (campaign slot, hard rules, weight check)
 config.py       campaign defaults, weights, rubric thresholds, toggles
 scorer.py       the scoring engine — Steps 1, 4, 5, 5a of the skill
 enricher.py     API enrichment stub (Favikon / Modash), off by default
@@ -112,5 +121,22 @@ After any change, actually run the app and confirm the UI renders — do not ass
 5. Export to CSV downloads a valid file with a header row.
 6. `GET /schedule` (and `/api/schedule`) returns a valid JSON response.
 
-`python -m pytest tests/` covers 1, 3, 4, 6 and the formula identity; the browser
-checks still matter for 2 and 5.
+`python -m pytest tests/` covers 1, 3, 4, 6, the formula identity, and spec/config
+agreement; the browser checks still matter for 2 and 5.
+
+## Known deviations from the spec
+
+Two places where this implementation knowingly differs from
+`agents/creator-campaign-scout.md`. Both are deliberate — do not "fix" them without
+reading this first.
+
+1. **Dimension 1 normalisation.** The spec declares Audience Match as 30 pts but its
+   sub-rubric sums to 25 (age skew 15 + US geography 10). `score_audience_match()`
+   scales the components by 30/25 so the dimension's ceiling is reachable and the
+   spec's own `D1 >= 22/30` role rule stays meaningful. Likely a typo in the spec.
+
+2. **Role thresholds.** The spec cuts roles at `D1 >= 22/30` (~3.67 on the 1-5 scale)
+   and `D2 >= 18/25` (3.6). This app cuts at 4.0 on both, per the build brief. The
+   fourth quadrant (both below 4) is unspecified in either; `assign_role()` falls to
+   the stronger dimension and never to Credibility, since Credibility is the one role
+   the spec calls scarce and evidence-gated.

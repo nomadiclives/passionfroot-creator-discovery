@@ -13,6 +13,11 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+AGENTS_DIR = os.path.join(BASE_DIR, "agents")
+
+# The skill file is the spec of record for the scoring model. It is checked in so
+# the app can load and display it at runtime — see agent_spec.py.
+SPEC_FILE = os.path.join(AGENTS_DIR, "creator-campaign-scout.md")
 
 CREATOR_CSV = os.path.join(DATA_DIR, "sample_creators.csv")
 PIPELINE_INTEL = os.path.join(DATA_DIR, "pipeline_intel.json")
