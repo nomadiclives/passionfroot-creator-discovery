@@ -34,6 +34,23 @@ def state_file(tmp_path):
     return str(tmp_path / "schedule_state.json")
 
 
+FIXTURE_PIPELINE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "fixtures", "pipeline_intel.json"
+)
+
+
+@pytest.fixture()
+def fixture_pipeline(monkeypatch):
+    """Point the scheduler at the test pipeline.
+
+    The real `data/pipeline_intel.json` holds only live campaigns, so the paths
+    that need a second category or an uncalibrated platform are exercised from
+    a fixture instead of from the operator's data file.
+    """
+    monkeypatch.setattr(config, "PIPELINE_INTEL", FIXTURE_PIPELINE)
+    return FIXTURE_PIPELINE
+
+
 @pytest.fixture()
 def reports_dir(tmp_path, monkeypatch):
     path = tmp_path / "reports"
@@ -53,11 +70,16 @@ def test_pipeline_intel_loads_the_checked_in_file():
         assert campaign["category"], "a campaign with no category cannot assign roles"
 
 
-def test_fictional_pipeline_entries_are_labelled_as_such():
-    """Illustrative briefs must never read as real pipeline."""
+def test_the_operator_pipeline_holds_no_test_data():
+    """`data/pipeline_intel.json` is the operator's file, not a demo.
+
+    Demo briefs living here would run on every scheduled pass and write rows
+    into a real soft roster. They belong in tests/fixtures/.
+    """
     for campaign in scheduler.load_pipeline_intel():
-        if campaign["brand_name"].startswith("Fictional"):
-            assert campaign["status"] == "example"
+        assert campaign.get("status") not in {"fixture", "example"}, (
+            f"{campaign['id']} is test data in the operator's pipeline file"
+        )
 
 
 def test_missing_pipeline_is_an_empty_pipeline_not_a_crash(tmp_path):
@@ -156,15 +178,17 @@ def test_run_once_writes_a_dated_roster_and_records_state(reports_dir, state_fil
     assert state["history"]
 
 
-def test_the_roster_names_the_campaign_on_every_row(reports_dir, state_file):
-    scheduler.run_once(state_path=state_file, when=dt.datetime(2026, 9, 10, 9, 0))
+def test_the_roster_names_the_campaign_on_every_row(reports_dir, state_file,
+                                                   fixture_pipeline):
+    scheduler.run_once(pipeline=fixture_pipeline, state_path=state_file,
+                       when=dt.datetime(2026, 9, 10, 9, 0))
     text = (reports_dir / "soft_roster_2026-09-10.csv").read_text(encoding="utf-8")
     rows = list(csv.reader(io.StringIO(text)))
 
     assert rows[0][:2] == ["Campaign", "Brand"]
     campaigns = {row[0] for row in rows[1:]}
     assert "craftly-students" in campaigns
-    assert len(campaigns) == len(scheduler.load_pipeline_intel())
+    assert len(campaigns) == len(scheduler.load_pipeline_intel(fixture_pipeline))
 
 
 def test_a_scheduled_roster_matches_a_hand_built_one(reports_dir, state_file):
@@ -184,15 +208,16 @@ def test_a_scheduled_roster_matches_a_hand_built_one(reports_dir, state_file):
 
 
 def test_a_campaign_in_an_unjudged_category_yields_review_not_invented_roles(
-    reports_dir, state_file
+    reports_dir, state_file, fixture_pipeline
 ):
-    summary = scheduler.run_once(state_path=state_file, when=dt.datetime(2026, 9, 10, 9, 0))
+    summary = scheduler.run_once(pipeline=fixture_pipeline, state_path=state_file,
+                                 when=dt.datetime(2026, 9, 10, 9, 0))
     by_id = {c["id"]: c for c in summary["campaigns"]}
 
     craftly = by_id["craftly-students"]
     assert craftly["shortlisted"] == 17
 
-    hardware = by_id["example-study-hardware"]
+    hardware = by_id["fixture-other-category"]
     assert hardware["shortlisted"] == 0
     assert hardware["needs_review"] == 18, (
         "a different category must return the pool for re-judgement rather than "

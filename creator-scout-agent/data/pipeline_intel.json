@@ -2,11 +2,19 @@
   "_readme": [
     "Upcoming brand briefs the scheduler pre-builds soft rosters against.",
     "Operator-maintained: add a block when a brief lands, remove it when the campaign closes.",
-    "'category' is what Category Readiness is judged against and therefore what drives",
-    "campaign role — it is the field that actually changes the roster, so keep it exact.",
-    "Rows marked status 'example' are ILLUSTRATIVE BRIEFS, not real pipeline. They exist so",
-    "the scheduler loop can be demonstrated end to end. The brands are fictional. Delete them",
-    "before running this against a real book of business."
+    "",
+    "Required per campaign: id, brand_name, category.",
+    "Optional, and inherited from config.DEFAULT_BRIEF when omitted: product_description,",
+    "campaign_goal, target_audience, platforms, cpm, follower_band, shortlist_size,",
+    "exclusions. 'status', 'brief_received' and 'notes' are for humans and do not affect",
+    "scoring.",
+    "",
+    "'category' is the field that does the most work. Campaign role comes from Category",
+    "Readiness, and a readiness judgement is evidence about ONE named category. Creators in",
+    "data/creators.json were judged against 'AI app-building tools', so a brief in any other",
+    "category returns those rows as NEEDS_REVIEW rather than assigning a role from evidence",
+    "about something else. That is the guard working, not an empty result — judge the pool",
+    "against the new category (set readiness + readiness_category on each row) to score it."
   ],
   "campaigns": [
     {
@@ -24,38 +32,6 @@
       "exclusions": "Bubble, Glide, Adalo, FlutterFlow, Softr",
       "brief_received": "2026-09-01",
       "notes": "The campaign this repo was built for. Sourced set lives in data/creators.json."
-    },
-    {
-      "id": "example-b2b-newsletter-tool",
-      "status": "example",
-      "brand_name": "Fictional Brand A",
-      "product_description": "ILLUSTRATIVE ONLY. A newsletter analytics tool for solo operators.",
-      "category": "creator monetisation tools",
-      "campaign_goal": "conversion",
-      "target_audience": "Solo creators and operators running paid newsletters.",
-      "platforms": ["linkedin", "youtube"],
-      "cpm": 65,
-      "follower_band": "micro",
-      "shortlist_size": 15,
-      "exclusions": "",
-      "brief_received": "2026-09-08",
-      "notes": "Fictional. Exercises the LinkedIn path, which is uncalibrated and should return NEEDS_CALIBRATION rather than a score."
-    },
-    {
-      "id": "example-study-hardware",
-      "status": "example",
-      "brand_name": "Fictional Brand B",
-      "product_description": "ILLUSTRATIVE ONLY. A note-taking tablet aimed at students.",
-      "category": "student productivity hardware",
-      "campaign_goal": "awareness",
-      "target_audience": "US and UK university students aged 18-24.",
-      "platforms": ["tiktok", "instagram"],
-      "cpm": 40,
-      "follower_band": "mid",
-      "shortlist_size": 15,
-      "exclusions": "",
-      "brief_received": "2026-09-09",
-      "notes": "Fictional. Same creator pool, different category — shows how readiness (and therefore role) is category-relative."
     }
   ]
 }

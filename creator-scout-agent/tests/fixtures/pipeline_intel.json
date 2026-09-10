@@ -1,0 +1,52 @@
+{
+  "_readme": [
+    "Test fixture, not real pipeline. Two briefs, to cover the scheduler paths a",
+    "single-campaign pipeline cannot reach:",
+    "  - craftly-students       the campaign the pool WAS judged for; scores normally",
+    "  - fixture-other-category a different category against the same pool, so the",
+    "                           readiness guard fires and rows return NEEDS_REVIEW",
+    "NEEDS_CALIBRATION is not exercised from here: the LinkedIn cohort has no metrics,",
+    "so those rows stop at NEEDS_REFRESH before D3 is reached. That path is covered by",
+    "test_uncalibrated_instrument_refuses_to_score, with a synthetic creator.",
+    "The brands are deliberately unmistakable as fake. Keep them that way."
+  ],
+  "campaigns": [
+    {
+      "id": "craftly-students",
+      "status": "live",
+      "brand_name": "Craftly",
+      "product_description": "An AI tool that builds a working app from a plain-English description. Craftly for Students positions it as the tool for university students who want to build without knowing how to code.",
+      "category": "AI app-building tools",
+      "campaign_goal": "awareness",
+      "target_audience": "US university students aged 18-24, or creators whose audience skews 18-24 and US-dominant.",
+      "platforms": [
+        "tiktok",
+        "instagram",
+        "youtube"
+      ],
+      "cpm": 50,
+      "follower_band": "all",
+      "shortlist_size": 18,
+      "exclusions": "Bubble, Glide, Adalo, FlutterFlow, Softr",
+      "brief_received": "2026-09-01"
+    },
+    {
+      "id": "fixture-other-category",
+      "status": "fixture",
+      "brand_name": "Test Fixture Brand B",
+      "product_description": "FIXTURE ONLY. Same creator pool, different category — the readiness guard must fire.",
+      "category": "student productivity hardware",
+      "campaign_goal": "awareness",
+      "target_audience": "US and UK university students aged 18-24.",
+      "platforms": [
+        "tiktok",
+        "instagram"
+      ],
+      "cpm": 40,
+      "follower_band": "mid",
+      "shortlist_size": 15,
+      "exclusions": "",
+      "brief_received": "2026-09-09"
+    }
+  ]
+}

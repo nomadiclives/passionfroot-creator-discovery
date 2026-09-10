@@ -26,7 +26,7 @@ item (per-platform follower counts) blocks a real fix to Dimension 3.
 | Stylesheet | `static/styles.css` | ✅ plain CSS, no framework |
 | Scheduler | `scheduler.py` | ✅ `--once` and blocking loop; writes dated soft rosters |
 | Enrichment stub | `enricher.py` | ✅ inert by default; gaps-only merge; UNVERIFIED on failure |
-| Pipeline intel | `data/pipeline_intel.json` | ✅ 1 live campaign + 2 clearly fictional examples |
+| Pipeline intel | `data/pipeline_intel.json` | ✅ live campaigns only; test briefs live in `tests/fixtures/` |
 | README | `README.md` | ✅ written |
 | Tests | `tests/` | ✅ 83 passing |
 
@@ -139,8 +139,10 @@ Rows now carry `readiness_category`, and `score_creator()` returns `NEEDS_REVIEW
 does not match `brief["category"]`. Absence of the tag is not a mismatch: an untagged row
 still scores, so the guard fires only on a **known** mismatch.
 
-The visible effect: the two example pipeline campaigns shortlist **0 of 25** and report 18
-rows for re-judgement. That is the guard working, not a broken run.
+The visible effect, from `tests/fixtures/pipeline_intel.json`: a brief in another
+category shortlists **0 of 25** and reports 18 rows for re-judgement. That is the guard
+working, not a broken run — and it is the first thing to explain to anyone who adds a
+brief outside `AI app-building tools` and sees an empty roster.
 
 ## What the UI is for
 
@@ -181,7 +183,7 @@ Nothing here blocks running the app.
 | **Per-platform follower counts** | The real fix for D3 saturation, and for the three `rate_reproducible: false` rows. Needs a schema change plus re-sourcing, not a code change. See the D3 section above. |
 | **LinkedIn calibration** | `config.INSTRUMENTS["linkedin"]["bands"]` is `None`, so LinkedIn returns `NEEDS_CALIBRATION`. The 5-creator cohort in `data/creators.json` has no metrics yet — collect interaction rates for it, fit bands, then delete the uncalibrated branch. |
 | **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
-| **Fictional pipeline entries** | `data/pipeline_intel.json` carries two `status: example` briefs with fictional brands so the loop can be demonstrated. Delete them before this runs against a real book of business. |
+| **Judging the pool for a second category** | `data/pipeline_intel.json` holds live campaigns only, and every readiness judgement in `data/creators.json` is against `AI app-building tools`. A brief in any other category needs the pool judged against it (`readiness` + `readiness_category` per row) before it can score. |
 | **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. |
 | **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |
 

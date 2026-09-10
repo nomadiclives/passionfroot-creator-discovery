@@ -116,9 +116,19 @@ same engine the UI uses, and writes `reports/soft_roster_YYYY-MM-DD.csv`, loggin
 `logs/scheduler.log`. A scheduled roster and a hand-built one are the same artifact — a
 test asserts it row for row.
 
-The checked-in pipeline carries the live Craftly campaign plus two entries marked
-`example` with fictional brands, so the loop can be demonstrated end to end. Delete them
-before running this against a real book of business.
+The checked-in pipeline carries live campaigns only. Add a brief as a campaign block —
+`id`, `brand_name` and `category` are required, everything else falls back to the
+campaign slot in `config.DEFAULT_BRIEF`.
+
+**Adding a brief in a new category is not a one-line change.** Role comes from Category
+Readiness, and a readiness judgement is evidence about one named category, so a brief
+outside `AI app-building tools` returns the pool as `NEEDS_REVIEW` until someone judges
+it against the new category (`readiness` + `readiness_category` per row). That is the
+guard working, not an empty result. A brief in the *same* category — different brand,
+audience, platform mix or budget — scores immediately.
+
+Test briefs that exercise the guard live in `tests/fixtures/pipeline_intel.json`, not in
+the operator's pipeline file.
 
 ## Known limitation — D3 saturates
 

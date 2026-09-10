@@ -73,9 +73,10 @@
       </tbody>
     </table>
     <p class="note">
-      Entries marked <code>example</code> are illustrative briefs with fictional brands,
-      kept so the loop can be demonstrated. Delete them before running this against a
-      real book of business.
+      Add a brief to <code>data/pipeline_intel.json</code> as a campaign block —
+      <code>id</code>, <code>brand_name</code> and <code>category</code> are required and
+      the rest falls back to the campaign slot. A brief in a category the pool was not
+      judged against returns its rows for re-judgement rather than assigning roles.
     </p>
     {% else %}
     <p class="note">
