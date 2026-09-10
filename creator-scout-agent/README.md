@@ -112,6 +112,39 @@ Tier 1 creator can be an Awareness candidate. Readiness is a human judgement rec
 against a *named* category, and it does not transfer: run a brief in another category
 and those rows come back `NEEDS_REVIEW` rather than carrying a role across.
 
+## Supplying the judgement
+
+Four of the five dimensions and the readiness call are human judgements, so a freshly
+sourced list scores as `NEEDS_REVIEW` on every row. `/judge` is where you supply them:
+the four sub-scores and readiness per creator, saved against the pool and re-scored.
+
+The boundary the screen holds is exact, and it is the project's central rule restated:
+
+> **Judgement can be typed. A metric must be sourced.**
+
+So the form offers the four sub-scores and readiness, and offers *no* input for
+followers, resonance rate or any other metric. A row missing a metric is **locked** with
+its reason rather than presented as something you could judge your way out of — judging
+cannot rescue a `NEEDS_REFRESH` row, and pretending otherwise would invite exactly the
+invention the engine exists to prevent.
+
+Three further properties, each pinned by a test:
+
+- **A judgement is recorded against the category it was made for.** Saving readiness also
+  writes `readiness_category` from the brief, so an in-app judgement is bound by the same
+  non-transfer rule as a sourced one.
+- **The checked-in creator data is never edited.** Judging the bundled pool forks it into
+  a temporary working copy. `data/creators.json` carries `source`, `sourced_from` and
+  `sourced_date` — provenance a browser form cannot honestly supply — and is read-only in
+  practice on a deployed host anyway. To record a judgement permanently, edit the row.
+- **A judgement typed in the app is distinguishable from a sourced one.** Rows gain
+  `judged_in_app` and `judged_date`.
+
+Out-of-range input is **refused, not clamped** — clamping turns a typo into a judgement
+nobody made — and a refused save writes nothing at all rather than leaving the pool half
+updated. The working copy is temporary (see `UPLOAD_RETENTION_HOURS`), so export the
+shortlist to keep a result.
+
 ## Data
 
 `data/creators.json` holds 20 creators sourced from the product owner's sheet plus a
@@ -162,18 +195,19 @@ See [`HANDOVER.md`](HANDOVER.md).
 
 ```
 app.py           Flask routes + server-rendered UI
+creator_pool.py  uploaded-pool parsing, parking, and the judging write-back
 scorer.py        the scoring engine — Steps 1, 4, 5, 5a, 6
 config.py        campaign defaults, locked weights, instruments, gates, toggles
 agent_spec.py    loads the checked-in skill spec and guards weight drift
 enricher.py      Favikon / Modash enrichment stub, off by default
 scheduler.py     soft-roster discovery loop
 agents/          the skill spec — the spec of record
-templates/       index.html, results.html, schedule.html, base.html
+templates/       index.html, results.html, judge.html, schedule.html, base.html
 static/          styles.css
 data/            creators.json, pipeline_intel.json
 reports/         soft_roster_YYYY-MM-DD.csv (generated)
 logs/            scheduler.log (generated)
-tests/           89 tests
+tests/           160 tests
 ../render.yaml   Render blueprint (repo root)
 ```
 

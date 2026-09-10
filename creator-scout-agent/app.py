@@ -206,6 +206,13 @@ def shortlist():
             ),
             400,
         )
+    return _render_shortlist(
+        brief, result, dict(source.lists()) if hasattr(source, "lists") else {}
+    )
+
+
+def _render_shortlist(brief: dict, result: dict, form_values: dict) -> str:
+    """Screen 2. Shared by /shortlist and the judging screen's save-and-build."""
     return render_template(
         "results.html",
         brief=brief,
@@ -222,8 +229,160 @@ def shortlist():
             "review": scorer.STATUS_REVIEW,
             "calibration": scorer.STATUS_CALIBRATION,
         },
-        form_values=dict(source.lists()) if hasattr(source, "lists") else {},
+        form_values=form_values,
     )
+
+
+# ---------------------------------------------------------------------------
+# The judging screen
+# ---------------------------------------------------------------------------
+# Four of the five dimensions and the readiness call are human judgements, so a
+# freshly sourced list scores as NEEDS_REVIEW on every row. That is correct — the
+# engine will not invent judgement — but until now the only way to supply it was
+# to hand-edit CSV columns. This screen is the same judgement arriving through a
+# better door.
+#
+# What it deliberately does NOT offer is a way to type a metric. Followers and
+# resonance rate are shown read-only, and a row missing them stays NEEDS_REFRESH
+# and is not judgeable here. Judgement can be typed; a metric must be sourced.
+def _judging_rows(rows: list[dict], criteria: dict) -> list[dict]:
+    """Pair every pool row with its current status, in pool order.
+
+    Scored individually rather than through build_shortlist(), which ranks and
+    would break the index the form posts back against.
+    """
+    out = []
+    for index, row in enumerate(rows):
+        creator = scorer.normalise_creator(row)
+        scored = scorer.score_creator(creator, criteria)
+        status = scored.get("status")
+        out.append(
+            {
+                "index": index,
+                "creator": creator,
+                "status": status,
+                "status_reason": scored.get("status_reason", ""),
+                # A metric gap cannot be judged away, so the form locks the row
+                # and says why rather than offering inputs that would not help.
+                "judgeable": status != scorer.STATUS_REFRESH,
+                "needs_judgement": status == scorer.STATUS_REVIEW,
+                "judged_in_app": bool(row.get("judged_in_app")),
+                "judged_date": row.get("judged_date", ""),
+            }
+        )
+    return out
+
+
+def _judge_context(brief: dict, rows: list[dict], filename: str, token: str) -> dict:
+    criteria = scorer.lock_criteria(brief)
+    judging = _judging_rows(rows, criteria)
+    return dict(
+        brief=brief,
+        criteria=criteria,
+        rows=judging,
+        pool={"filename": filename, "token": token, "count": len(rows)},
+        readiness_roles=config.READINESS_ROLES,
+        readiness_order=config.READINESS_ORDER,
+        judged_fields=creator_pool.JUDGEMENT_FIELDS,
+        outstanding=sum(1 for r in judging if r["needs_judgement"]),
+        unrefreshable=sum(1 for r in judging if not r["judgeable"]),
+        form_values=_carry_brief(brief),
+    )
+
+
+def _carry_brief(brief: dict) -> dict:
+    """The brief fields the judging form re-posts, so the round trip keeps them."""
+    carried = {f: brief.get(f, "") for f in FORM_TEXT_FIELDS}
+    carried["platforms"] = brief.get("platforms", [])
+    carried["follower_band"] = brief.get("follower_band", "")
+    carried["cpm"] = brief.get("cpm", "")
+    carried["shortlist_size"] = brief.get("shortlist_size", "")
+    return carried
+
+
+@app.route("/judge", methods=["GET", "POST"])
+def judge():
+    source = request.form if request.method == "POST" else request.args
+    brief = brief_from_form(source)
+    token = (source.get(creator_pool.TOKEN_FIELD) or "").strip()
+    try:
+        rows, filename, token = creator_pool.open_for_judging(token)
+    except creator_pool.PoolError as exc:
+        return (
+            render_template(
+                "index.html", brief=brief, upload_error=str(exc), **_index_context()
+            ),
+            400,
+        )
+    return render_template(
+        "judge.html", saved=None, error=None, **_judge_context(brief, rows, filename, token)
+    )
+
+
+@app.post("/judge/save")
+def judge_save():
+    form = request.form
+    brief = brief_from_form(form)
+    token = (form.get(creator_pool.TOKEN_FIELD) or "").strip()
+
+    try:
+        judgements = _judgements_from_form(form)
+        changed = creator_pool.apply_judgements(
+            token, judgements, scorer.lock_criteria(brief)["category"]
+        )
+        rows, filename = creator_pool.load(token)
+    except creator_pool.PoolError as exc:
+        # Re-render the form the operator was filling in rather than dropping
+        # the other judgements they had already typed.
+        try:
+            rows, filename, token = creator_pool.open_for_judging(token)
+        except creator_pool.PoolError:
+            return (
+                render_template(
+                    "index.html", brief=brief, upload_error=str(exc), **_index_context()
+                ),
+                400,
+            )
+        return (
+            render_template(
+                "judge.html",
+                error=str(exc),
+                saved=None,
+                **_judge_context(brief, rows, filename, token),
+            ),
+            400,
+        )
+
+    if form.get("then") == "shortlist":
+        result = scorer.build_shortlist(brief, rows)
+        result["pool"] = {
+            "kind": "upload", "filename": filename,
+            "count": len(rows), "token": token,
+        }
+        return _render_shortlist(brief, result, {creator_pool.TOKEN_FIELD: [token]})
+
+    return render_template(
+        "judge.html",
+        saved=changed,
+        error=None,
+        **_judge_context(brief, rows, filename, token),
+    )
+
+
+def _judgements_from_form(form) -> dict[int, dict]:
+    """Read `judge-<index>-<field>` inputs back into per-row payloads.
+
+    Only rows the form actually offered come back — a locked NEEDS_REFRESH row
+    posts no inputs and is therefore never touched.
+    """
+    judgements: dict[int, dict] = {}
+    for key in form.keys():
+        match = re.match(r"^judge-(\d+)-([a-z_]+)$", key)
+        if not match:
+            continue
+        index = int(match.group(1))
+        judgements.setdefault(index, {})[match.group(2)] = form.get(key)
+    return judgements
 
 
 @app.route("/export.csv", methods=["GET", "POST"])

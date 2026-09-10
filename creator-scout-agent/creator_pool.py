@@ -148,3 +148,128 @@ def resolve(form, files) -> tuple[object, dict]:
         "count": None,
         "token": BUNDLED,
     }
+
+
+# ---------------------------------------------------------------------------
+# In-app judging
+# ---------------------------------------------------------------------------
+# Four of the five dimensions, and the readiness call that assigns campaign role,
+# are human judgements. The engine will not invent them — so an uploaded sourcing
+# export scores nothing until a person supplies them. Until now the only way to
+# supply them was to hand-edit CSV columns in a text editor.
+#
+# Judging in the browser does not weaken the never-invent rule; it is the same
+# judgement arriving through a better door. The rule it must not break is the
+# other one: a metric is sourced, never typed. So the judging form offers the
+# four sub-scores and readiness, and NOTHING that would let someone fill in a
+# follower count or a resonance rate.
+
+JUDGEMENT_FIELDS = (
+    "audience_match_score",
+    "content_match_score",
+    "geo_match_score",
+    "commercial_maturity_score",
+)
+
+
+def open_for_judging(token: str) -> tuple[list[dict], str, str]:
+    """Return (rows, filename, token) for a pool that can be judged.
+
+    The bundled pool is FORKED rather than edited. `data/creators.json` is
+    checked-in sourced data — every row carries where it came from and when —
+    and letting a browser form write into it would leave an audit trail that
+    says "manual, sourced 2026-09-10" over values typed by someone else on a
+    different day. It is also read-only in practice on a deployed host, whose
+    filesystem resets on every deploy.
+    """
+    if not token or token == BUNDLED:
+        rows = scorer.load_creators(config.CREATOR_DATA)
+        new_token = save(rows, f"{os.path.basename(config.CREATOR_DATA)} (working copy)")
+        return rows, f"{os.path.basename(config.CREATOR_DATA)} (working copy)", new_token
+
+    rows, filename = load(token)
+    return rows, filename, token
+
+
+def apply_judgements(token: str, judgements: dict[int, dict], category: str) -> int:
+    """Write judgements into a parked pool. Returns how many rows changed.
+
+    A judgement is recorded against the campaign category it was made for.
+    That is the whole point of `readiness_category`: the judgement is evidence
+    about one named category and must not silently transfer to another brief.
+
+    Blank means unjudged. The form is pre-filled with what the pool already
+    holds, so an emptied field is someone withdrawing a judgement, not an
+    omission to be papered over with the previous value.
+    """
+    rows, filename = load(token)
+    changed = 0
+
+    for index, payload in judgements.items():
+        if not 0 <= index < len(rows):
+            continue
+        row = rows[index]
+        before = {f: row.get(f) for f in JUDGEMENT_FIELDS}
+        before["readiness"] = row.get("readiness")
+
+        # Only these fields are ever written. This allowlist — not the form's
+        # choice of inputs — is what stops a hand-crafted POST setting a metric.
+        for field in JUDGEMENT_FIELDS:
+            row[field] = _score_or_none(payload.get(field))
+
+        readiness = (payload.get("readiness") or "").strip().lower()
+        if readiness in config.READINESS_ROLES:
+            row["readiness"] = readiness
+            # The category travels with the judgement, always. A readiness value
+            # without the category it was judged against is the ambiguity this
+            # field exists to remove.
+            row["readiness_category"] = category
+        elif not readiness:
+            row["readiness"] = ""
+            row["readiness_category"] = ""
+        else:
+            # Refused rather than ignored, for the same reason an out-of-range
+            # score is: silently dropping it would leave whatever readiness the
+            # row already had, and report success.
+            raise PoolError(
+                f"“{readiness}” is not a readiness level — use "
+                + ", ".join(config.READINESS_ORDER)
+            )
+
+        after = {f: row.get(f) for f in JUDGEMENT_FIELDS}
+        after["readiness"] = row.get("readiness")
+        if after != before:
+            changed += 1
+            # Provenance: a judgement typed into a browser is distinguishable
+            # from one that arrived with the sourced data.
+            row["judged_in_app"] = True
+            row["judged_date"] = _today()
+
+    with open(_path(token), "w", encoding="utf-8") as fh:
+        json.dump({"filename": filename, "creators": rows}, fh)
+    return changed
+
+
+def _score_or_none(raw) -> float | None:
+    """A 1-5 sub-score, or None for blank. Out-of-range is refused, not clamped.
+
+    Clamping would turn a typo into a judgement. `_judged()` in the scorer
+    clamps values that reached it from sourced data; that is a different job
+    from accepting form input, where the operator is present to be told.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError as exc:
+        raise PoolError(f"“{text}” is not a score — use 1 to 5, or leave blank") from exc
+    if not 1.0 <= value <= 5.0:
+        raise PoolError(f"score {value:g} is outside 1-5")
+    return value
+
+
+def _today() -> str:
+    from datetime import date
+
+    return date.today().isoformat()

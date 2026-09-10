@@ -409,3 +409,42 @@ input[type="file"] {
   width: 100%;
 }
 .pool-source { font-size: 0.9rem; opacity: 0.85; }
+
+/* ---------------------------------------------------------------------------
+   Judging screen
+   Inputs sit inside the same creators table the shortlist uses, so they have to
+   stay compact enough not to stretch the row height out of line with Screen 2.
+   --------------------------------------------------------------------------- */
+.creators input[type="number"] {
+  width: 3.6rem;
+  padding: .3rem .4rem;
+  font: inherit;
+  text-align: center;
+  border: 1px solid var(--line, #d8dbe0);
+  border-radius: 4px;
+  background: #fff;
+}
+.creators input[type="number"]:focus,
+.creators select:focus {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+.creators select {
+  padding: .3rem .4rem;
+  font: inherit;
+  border: 1px solid var(--line, #d8dbe0);
+  border-radius: 4px;
+  background: #fff;
+  max-width: 14rem;
+}
+/* A locked row is one the engine will not let you judge your way out of. */
+.creators tr.row-needs-refresh td.reason {
+  font-style: italic;
+  opacity: .8;
+}
+.actions {
+  display: flex;
+  gap: .6rem;
+  margin: 1rem 0 .4rem;
+  flex-wrap: wrap;
+}

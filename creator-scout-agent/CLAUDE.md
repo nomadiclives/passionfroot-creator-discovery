@@ -126,6 +126,29 @@ Gates are separate from, and beat, the D3 score:
 ### 5. CPM is calculated from views, not followers
 `avg_views * SPONSOR_DECAY (0.85)` is the reach denominator. Never use follower count.
 
+### 6. Judgement can be typed. A metric must be sourced.
+The judging screen (`/judge`) lets a human supply the four judged sub-scores and the
+readiness call in the browser instead of hand-editing CSV columns. This does **not**
+weaken rule 1 — it is the same human judgement arriving through a better door.
+
+The boundary is what matters, and it must hold exactly:
+
+- The form offers the four `JUDGED_FIELDS` and `readiness`. It must **never** offer an
+  input for `followers`, `resonance_rate`, `avg_views` or any other metric. Adding one
+  would invite the invention the engine exists to prevent.
+- A row that is `NEEDS_REFRESH` is **locked**, not judgeable. Judging cannot rescue a
+  metric gap, and a form that implied otherwise would be lying about what is wrong.
+- Saving readiness also writes `readiness_category` from the brief. An in-app judgement
+  is bound by the non-transfer rule (rule 4 of `HANDOVER.md`) exactly like a sourced one.
+- Judging **forks** the bundled pool rather than editing `data/creators.json`, which
+  carries provenance a browser form cannot supply. Rows judged in-app carry
+  `judged_in_app` and `judged_date` so the two are always distinguishable.
+- Out-of-range input is refused, not clamped. `scorer._judged()` clamps values arriving
+  from sourced data; accepting form input is a different job, because the operator is
+  present to be told. A refused save writes nothing rather than half-updating the pool.
+
+`tests/test_judging.py` pins all of the above.
+
 ## Enrichment toggle
 
 `config.py` -> `ENRICHMENT_ENABLED` (default `False`).
@@ -143,8 +166,10 @@ scorer.py       the scoring engine — Steps 1, 4, 5, 5a of the skill
 enricher.py     API enrichment stub (Favikon / Modash), off by default
 scheduler.py    weekly soft-roster discovery loop
 app.py          Flask API + server-rendered UI
+creator_pool.py uploaded-pool parsing/parking, and the judging write-back
 templates/      base.html (shell), index.html (Screen 1 brief),
-                results.html (Screen 2 shortlist), schedule.html (schedule console)
+                results.html (Screen 2 shortlist), judge.html (judging screen),
+                schedule.html (schedule console)
 static/         styles.css
 data/           creators.json (sourced), pipeline_intel.json
 reports/        soft_roster_YYYY-MM-DD.csv output (auto-created)

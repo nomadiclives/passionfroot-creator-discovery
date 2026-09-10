@@ -3,7 +3,7 @@
 **Status: handed over 2026-09-10.** Feature-complete, merged to `main`, and **deployed
 on Render** from `render.yaml` — engine, web app, scheduler and enrichment stub all built
 and exercised in a real browser.
-**Test suite:** `python -m pytest tests/` — 89 passing.
+**Test suite:** `python -m pytest tests/` — 160 passing.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
 file is a blocker on running the app. What remains is listed under **Still open**; the
@@ -36,7 +36,9 @@ it is the single most likely thing to be mistaken for a bug.
 | Empty-roster explanation | `templates/results.html` | ✅ Screen 2 leads with why a roster is empty, not just per-row |
 | READMEs | `README.md`, `../README.md` | ✅ project and repo root, with a usage walkthrough |
 | Deployment | `../render.yaml` | ✅ Render blueprint; gunicorn, `/healthz` check, debug off |
-| Tests | `tests/` | ✅ 89 passing |
+| Upload pool | `creator_pool.py` | ✅ parse, park, resolve, judge write-back; **tested** |
+| Judging screen | `templates/judge.html` | ✅ four sub-scores + readiness; metrics never offered |
+| Tests | `tests/` | ✅ 160 passing |
 
 ### The data is real now
 
@@ -249,16 +251,16 @@ csv, it just scores the same 18 creators no matter what the brief"*. That was ac
 3 rows, not the bundled 25; a malformed file returned 400 with an actionable message;
 suite green at 89.
 
-**⚠️ Not verified by tests.** No test covers `creator_pool.py` or the upload routes.
-The 89 that pass are the pre-existing suite, which still runs the bundled pool. First
-job for whoever picks this up: tests for parse, token round-trip, export-matches-screen,
-the retention sweep, and the bad-upload 400. Until those exist, treat upload as working
-but unguarded — a refactor could silently break it.
+**✅ Now covered by tests** (`tests/test_creator_pool.py`, 41 tests) — parse, the token
+round trip, the retention sweep, `resolve()`'s precedence, and the upload/export routes.
+The sharpest assert what must never happen: a bad upload falling back to the bundled
+pool, which fails as a full, plausible shortlist of creators nobody submitted. Each was
+mutation-checked rather than assumed — reinstating the fallback, dropping the token
+regex, or moving the size cap after the decode each fails the test that pins it.
 
-**Known rough edge.** An uploaded list without the four judged sub-scores and a
-`readiness` call comes back entirely `NEEDS_REVIEW` — correct by design, but it means a
-raw sourcing export scores nothing until a human fills those columns in. The template
-CSV includes them; see the scoping note below.
+**The rough edge is closed.** An uploaded list without the four judged sub-scores and a
+`readiness` call still comes back entirely `NEEDS_REVIEW` — correct by design — but the
+human no longer has to fill those columns in a text editor. See **In-app judging** below.
 
 ---
 
@@ -297,15 +299,60 @@ moderators — are judgement work no API exposes, and stay manual.
 Shape if built: a `discovery.py` producing candidates into the existing scorer, plus a
 screen ahead of Screen 1, so the flow becomes source → score → shortlist.
 
-### 2. In-app judging
+### 2. In-app judging — **built, see below**
 
-Four of the five dimensions are human scores typed into JSON by hand, plus the readiness
-call. That is what makes an uploaded raw list score as `NEEDS_REVIEW`. A judging screen —
-score the four sub-scores and readiness per creator in the browser, write back to the
-pool — is what would make upload genuinely usable end to end. Not started, and the fork
-worth deciding first: template-and-fill (small) versus an in-app judging UI (larger).
+This was the open fork (template-and-fill versus a judging UI). The judging UI was built;
+the section below records what it does and the boundary it holds.
 
 ---
+
+## In-app judging — built 2026-09-10
+
+The gap this closes: the app could score an uploaded list, but four of the five
+dimensions and the readiness call are human judgements, so a raw sourcing export came
+back entirely `NEEDS_REVIEW` and the only way through was hand-editing CSV columns in a
+text editor. Judging now happens in the browser.
+
+**Flow.** Screen 2 offers *Judge N creators* whenever rows need it → `/judge` renders the
+pool with the four sub-scores and a readiness select per row → *Save judgements* (stay
+and keep going) or *Save & build shortlist* (straight back to Screen 2, re-scored).
+
+**The boundary it holds**, which is the project's central rule restated:
+
+> Judgement can be typed. A metric must be sourced.
+
+- The form offers `JUDGED_FIELDS` and `readiness`, and **no input for any metric** —
+  not followers, not resonance rate. A test asserts their absence, because adding one
+  is the single most tempting way to break the engine's guarantee.
+- A `NEEDS_REFRESH` row is **locked**, with its reason and the note that a metric is
+  sourced, not judged. Posting judgements for a locked row by hand changes nothing.
+- Readiness saves `readiness_category` from the brief, so an in-app judgement is bound
+  by the non-transfer rule exactly like a sourced one — judge for one category, and a
+  brief in another still returns it for re-judgement.
+- Judging **forks** the bundled pool into a working copy; `data/creators.json` is never
+  written. It carries `source`/`sourced_from`/`sourced_date` that a browser form cannot
+  honestly supply, and it is read-only in practice on Render anyway.
+- Rows judged in-app carry `judged_in_app` and `judged_date`, so a typed judgement is
+  always distinguishable from a sourced one.
+- Out-of-range input is **refused, not clamped** (clamping turns a typo into a judgement
+  nobody made), and a refused save writes nothing rather than half-updating the pool.
+  `scorer._judged()` still clamps values arriving from sourced data — a different job,
+  because there the operator is not present to be told.
+
+**Verified in a real browser** (Chromium, not only the Flask test client): a 4-creator
+raw CSV in a new category shortlisted 0; judging 3 of them in the form and saving
+produced 3 scored rows with roles assigned from the typed readiness, outreach angles,
+and the 4th still honestly `NEEDS_REFRESH` for its missing metrics. No console errors.
+Out-of-range input is blocked twice over — the number input's `min`/`max` stops the
+browser submitting, and the server refuses it with a 400 if anything else tries.
+
+`tests/test_judging.py` — 30 tests, mutation-checked: offering a metric input, writing
+to the checked-in data, or clamping instead of refusing each fails the test that pins it.
+
+**Note on modelled budget.** An uploaded pool with no `avg_views` shows reach and budget
+as 0 on Screen 2. That is the CPM rule working (reach is modelled from views, never from
+followers), not a broken panel — and `avg_views` is a metric, so the judging screen
+correctly offers no way to type it.
 
 ## Still open
 
@@ -318,7 +365,7 @@ Nothing here blocks running the app, and the app is deployed.
 | **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
 | **Judging the pool for a second category** | `data/pipeline_intel.json` holds live campaigns only, and every readiness judgement in `data/creators.json` is against `AI app-building tools`. A brief in any other category needs the pool judged against it (`readiness` + `readiness_category` per row) before it can score. |
 | **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. On Render's free tier it never will — that needs a background worker or a cron job on a paid plan. |
-| **Tests for the upload path** | `creator_pool.py` and the upload/export routes have no automated coverage. Verified by hand only. |
+| **In-app judgements are ephemeral** | Judging writes to a temporary working copy, never to `data/creators.json`. Correct — provenance cannot come from a browser form — but it means a judged pool is lost when the working copy expires. Export the shortlist, or copy the judgement onto the row. A "write back to the pool file" affordance is the obvious next step, and needs a decision about provenance first. |
 | **Uploads are ephemeral** | Parked under `data/uploads/` with a 6-hour sweep, and the Render filesystem resets on deploy. An export attempted after expiry returns a clear error, but the pool is gone. |
 | **Authentication** | There is none. Anyone with the deployed URL sees the full shortlist, including the commercial notes on named creators. Fine for a demo, not for real use. |
 | **End-to-end check of the live deploy** | The build and the gunicorn command are verified locally; the deployed URL itself has not been walked through screen by screen. |

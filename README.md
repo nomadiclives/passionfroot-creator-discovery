@@ -70,12 +70,39 @@ creators instead of the bundled sample. Leave it empty to score the bundled pool
 app for every column the engine reads.
 
 An uploaded list without the four judged sub-scores and a `readiness` call scores as
-`NEEDS_REVIEW` on every row — the engine will not invent judgement. Fill those columns
-in, or see `HANDOVER.md` for the in-app judging screen that would remove the step.
+`NEEDS_REVIEW` on every row — the engine will not invent judgement. Supply it on the
+**judging screen** (next section) rather than hand-editing columns.
 
 **What this tool does not do: find creators.** There is no search, no platform API. You
 bring the list; it scores it. See "Scoped, not built" in
 [`HANDOVER.md`](creator-scout-agent/HANDOVER.md).
+
+### Judge a list so it can be scored
+
+Four of the five dimensions, and the readiness call that assigns campaign role, are
+human judgements. A freshly sourced list therefore scores nothing until a person supplies
+them. Screen 2 offers **Judge N creators** whenever rows need it, which opens a form with
+the four sub-scores and readiness per creator, then re-scores the pool.
+
+The rule the screen holds is the project's central one, restated:
+
+> **Judgement can be typed. A metric must be sourced.**
+
+So there is no input for followers or resonance rate anywhere on it, and a row missing a
+metric is *locked* with its reason instead of being offered as something you could judge
+your way out of. Judging cannot rescue a `NEEDS_REFRESH` row.
+
+Three things worth knowing:
+
+- Readiness is saved **against the brief's category**, so an in-app judgement does not
+  transfer to a brief about something else — the same rule as a sourced one.
+- Judging the bundled pool **forks it into a temporary working copy**; it never edits
+  `data/creators.json`, which carries provenance a browser form cannot supply. To record
+  a judgement permanently, edit the row (below).
+- An out-of-range score is refused rather than clamped, and a refused save writes
+  nothing — clamping would turn a typo into a judgement nobody made.
+
+The working copy is temporary, so **export the shortlist** to keep a result.
 
 ### Add a creator to the bundled pool
 
@@ -91,8 +118,10 @@ engine will not invent judgement any more than it will invent a metric.
 ### Score a new product category
 
 Readiness is judged against one named category, so a brief outside
-`AI app-building tools` will return the whole pool for re-judgement. To score a new
-category, set both fields on each creator row:
+`AI app-building tools` will return the whole pool for re-judgement. The fastest way
+through is the judging screen above, which writes both fields for you against the brief's
+category. To record the judgement permanently instead, set both fields on each creator
+row:
 
 ```json
 "readiness": "exposed",

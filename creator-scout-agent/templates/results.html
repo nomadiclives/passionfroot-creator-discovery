@@ -42,6 +42,13 @@
       {{ hidden_pool(result) }}
       <button type="submit" class="btn btn-primary">Export CSV</button>
     </form>
+    {% if counts.needs_review %}
+    <form method="post" action="{{ url_for('judge') }}">
+      {{ hidden_brief(brief) }}
+      {{ hidden_pool(result) }}
+      <button type="submit" class="btn">Judge {{ counts.needs_review }} creator{{ "s" if counts.needs_review != 1 }}</button>
+    </form>
+    {% endif %}
     <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
   </div>
 </section>
@@ -61,10 +68,21 @@
     product — the same thing as inventing a metric, so the engine refuses.
   </p>
   <p>
-    To score this category, judge the pool against it: set <code>readiness</code>
-    (<code>unexposed</code> / <code>exposed</code> / <code>adopted</code>) and
-    <code>readiness_category</code> on each row in <code>data/creators.json</code>.
-    Everything else about these creators — metrics, sub-scores, gates — is unaffected.
+    To score this category, judge the pool against it — everything else about these
+    creators (metrics, sub-scores, gates) is unaffected, so readiness is the only work
+    a new category needs.
+  </p>
+  <form method="post" action="{{ url_for('judge') }}">
+    {{ hidden_brief(brief) }}
+    {{ hidden_pool(result) }}
+    <button type="submit" class="btn btn-primary">
+      Judge this pool against {{ criteria.category }}
+    </button>
+  </form>
+  <p class="hint">
+    Judging works on a temporary copy and never writes to the checked-in creator data.
+    To record a judgement permanently, set <code>readiness</code> and
+    <code>readiness_category</code> on the row in <code>data/creators.json</code>.
   </p>
 </div>
 {% elif not result.shortlist %}

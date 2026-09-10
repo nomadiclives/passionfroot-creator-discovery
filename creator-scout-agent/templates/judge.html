@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Judge the pool — Creator Campaign Scout{% endblock %}
+
+{% macro hidden_brief(form_values) %}
+  {% for field in ["brand_name", "product_description", "category", "campaign_goal",
+                   "target_audience", "exclusions"] %}
+    <input type="hidden" name="{{ field }}" value="{{ form_values[field] }}">
+  {% endfor %}
+  {% for platform in form_values.platforms %}
+    <input type="hidden" name="platforms" value="{{ platform }}">
+  {% endfor %}
+  <input type="hidden" name="cpm" value="{{ form_values.cpm }}">
+  <input type="hidden" name="follower_band" value="{{ form_values.follower_band }}">
+  <input type="hidden" name="shortlist_size" value="{{ form_values.shortlist_size }}">
+{% endmacro %}
+
+{% block content %}
+<section class="hero hero-row">
+  <div>
+    <h1>Judge the pool</h1>
+    <p class="lede">
+      {{ outstanding }} of {{ pool.count }} creator{{ "s" if pool.count != 1 }} still need
+      judgement · judging against <strong>{{ criteria.category }}</strong>
+    </p>
+    <p class="lede pool-source">
+      Pool: <strong>{{ pool.filename }}</strong>
+    </p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
+  </div>
+</section>
+
+{% if error %}
+<div class="alert alert-danger">
+  <strong>Nothing was saved.</strong>
+  <p>{{ error }} — fix that field and submit again. The rest of what you typed is still on the form.</p>
+</div>
+{% elif saved is not none %}
+<div class="alert alert-info">
+  <strong>
+    {% if saved %}{{ saved }} creator{{ "s" if saved != 1 }} updated.{% else %}No changes to save.{% endif %}
+  </strong>
+  <p>
+    {% if outstanding %}
+      {{ outstanding }} still need judgement. Rows you leave blank stay
+      <code>NEEDS_REVIEW</code> — the engine will not fill them in.
+    {% else %}
+      Every judgeable row now carries a judgement. Build the shortlist to see it scored.
+    {% endif %}
+  </p>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+  <strong>Judgement can be typed here. A metric cannot.</strong>
+  <p>
+    Four of the five dimensions, and the Category Readiness call that assigns campaign
+    role, are human judgements — the engine will not invent them, which is why a freshly
+    sourced list scores as <code>NEEDS_REVIEW</code> on every row. This screen is where you
+    supply them.
+  </p>
+  <p>
+    Follower counts and resonance rates are shown <em>read-only</em> on purpose. A missing
+    metric is sourced, never typed, so a row missing one is locked below rather than
+    offered as something you could judge your way out of.
+  </p>
+  <p>
+    Readiness is recorded against <strong>{{ criteria.category }}</strong> — the category
+    this brief scores. It is evidence about that category only, and will come back for
+    re-judgement under a brief about something else.
+  </p>
+</div>
+
+<form method="post" action="{{ url_for('judge_save') }}">
+  {{ hidden_brief(form_values) }}
+  <input type="hidden" name="pool_token" value="{{ pool.token }}">
+
+  <div class="card">
+    <div class="table-scroll">
+      <table class="creators">
+        <thead>
+          <tr>
+            <th>Creator</th>
+            <th>Sourced metrics</th>
+            <th title="Dimension 1 — who the audience is">Audience</th>
+            <th title="Dimension 2 — what the creator makes">Content</th>
+            <th title="Dimension 4 — where the audience is">Geo</th>
+            <th title="Dimension 5 — how they work with brands">Commercial</th>
+            <th>Category readiness</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="{{ 'row-needs-refresh' if not row.judgeable }}">
+            <td>
+              <div class="creator-name">{{ row.creator.name }}</div>
+              <div class="creator-meta">
+                {{ row.creator.platforms_display|join(', ') or '—' }}
+                {% if row.judged_in_app %}
+                  <span class="tag tag-quiet" title="Judged in this app, not sourced with the row">judged in app {{ row.judged_date }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="creator-meta">
+              {% if row.creator.followers %}{{ "{:,.0f}".format(row.creator.followers) }} followers{% else %}<span class="flag flag-warn">no follower count</span>{% endif %}
+              <br>
+              {% if row.creator.resonance_rate is not none %}{{ "%.1f"|format(row.creator.resonance_rate) }}% resonance{% else %}<span class="flag flag-warn">no rate</span>{% endif %}
+            </td>
+
+            {% if row.judgeable %}
+              {% for field in judged_fields %}
+              <td>
+                <input class="num" type="number" min="1" max="5" step="0.5"
+                       name="judge-{{ row.index }}-{{ field }}"
+                       value="{{ row.creator[field] if row.creator[field] is not none else '' }}"
+                       aria-label="{{ field.replace('_score','').replace('_',' ') }} for {{ row.creator.name }}"
+                       placeholder="—">
+              </td>
+              {% endfor %}
+              <td>
+                <select name="judge-{{ row.index }}-readiness"
+                        aria-label="Category readiness for {{ row.creator.name }}">
+                  <option value="">— not judged —</option>
+                  {% for level in readiness_order %}
+                  <option value="{{ level }}" {{ 'selected' if row.creator.readiness == level }}>
+                    {{ level }} → {{ readiness_roles[level] }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </td>
+            {% else %}
+              <td colspan="5" class="reason">
+                Locked — {{ row.status_reason }}. Source the metric; it is not a judgement
+                call.
+              </td>
+            {% endif %}
+
+            <td>
+              <span class="status status-{{ row.status|lower|replace('_','-') }}">{{ row.status }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button type="submit" name="then" value="stay" class="btn">Save judgements</button>
+    <button type="submit" name="then" value="shortlist" class="btn btn-primary">
+      Save &amp; build shortlist
+    </button>
+  </div>
+  <p class="hint">
+    Judgements are saved against this working copy of the pool, not the checked-in
+    creator data. The working copy is temporary — export the shortlist to keep the result.
+  </p>
+</form>
+{% endblock %}
