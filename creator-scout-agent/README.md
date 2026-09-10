@@ -191,6 +191,17 @@ The fix is per-platform follower counts, not new bands. Until the schema carries
 `test_d3_saturation_is_a_known_limitation_not_a_surprise` keeps the weakness visible.
 See [`HANDOVER.md`](HANDOVER.md).
 
+## Discovery — the missing first half
+
+This app scores creators you already have; it cannot find them. Steps 2 and 3 of the spec
+(the discovery playbook and screening) are not implemented.
+
+[`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md) scopes that work: a tiered source inventory from
+free to paid, where discovery plugs into the existing engine, a four-phase build order
+with a genuinely useful **$0 tier**, and what stays manual permanently. The headline
+finding is that the free/paid line falls exactly on audience demographics — D1 and D4,
+40% of the score — which no free API exposes.
+
 ## Layout
 
 ```

@@ -31,6 +31,7 @@ An HTML comment noting provenance sits at the top of each body.
 | `technical-writer` | README and developer documentation |
 | `reality-checker` | certifying that something is actually done — defaults to NEEDS WORK |
 | `evidence-collector` | gathering command output and proof instead of asserting success |
+| `product-manager` | scoping a phase, sequencing a roadmap, deciding what to build and what to cut |
 
 The last two matter most on this project. `HANDOVER.md` carries a **"Verification still
 owed"** list, and `CLAUDE.md`'s top constraint is *never fabricate creator metrics* — both
@@ -43,7 +44,8 @@ A vendored agent is a working style, not an authority. The hard constraints in
 
 1. Never fabricate creator metrics — missing data becomes `NEEDS_REFRESH`.
 2. Never modify the scoring weights (.30/.25/.25/.10/.10).
-3. Campaign role comes from the D1/D2 relationship, not the total score.
+3. Campaign role comes from Category Readiness, not the D1/D2 relationship and never the
+   total score. A readiness judgement is evidence about one named category only.
 
 If an agent's generic advice conflicts with those, the project rule stands.
 
@@ -61,3 +63,4 @@ git clone --depth 1 https://github.com/msitarzewski/agency-agents /tmp/agency-ag
 ---
 
 **Source commit:** `6d29a9b08785a0e49ffc9818bbdd381164c2df5f` (2026-09-08), vendored 2026-09-10.
+`product-manager` was added from the same commit on 2026-09-10 to scope the discovery phase.

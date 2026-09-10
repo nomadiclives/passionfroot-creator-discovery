@@ -268,7 +268,7 @@ human no longer has to fill those columns in a text editor. See **In-app judging
 
 Two gaps we identified and deliberately deferred. Neither is started.
 
-### 1. Discovery / sourcing — the missing first half
+### 1. Discovery / sourcing — the missing first half · **now scoped in [`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md)**
 
 The app scores creators you already have. It cannot find them. No search, no platform
 API, no scraping. Steps 2 and 3 of the spec (the discovery playbook and screening) are
@@ -291,6 +291,13 @@ Three routes, cheapest first:
 | YouTube Data API | Real keyword and channel search, public subscriber/view stats. Would implement the spec's YouTube pass honestly | Free quota |
 | Phantom Buster | Instagram/TikTok/LinkedIn extraction via the operator's own connected accounts | Existing plan |
 | Modash / Favikon search endpoints | The real find-at-scale answer: filter by follower band, geo, engagement, topic. Same providers `config.py` already names | Paid |
+
+**Superseded 2026-09-10.** The route table above predates
+[`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md), which corrects it in two ways: Phantom Buster is
+the wrong tool (the connected account is a free plan capped at 30 min/month, running
+LinkedIn employee exports for another project), and there is a **cheap scraping tier**
+between free and the paid panels that the table missed entirely. The plan also finds that
+the free/paid line falls on audience demographics — 40% of the score.
 
 Realistic ceiling: these cover Search Pass 1 and part of Pass 3. The spec's strongest
 passes — competitor sponsorship audits, peer-graph discovery, Discord and subreddit

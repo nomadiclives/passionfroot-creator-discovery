@@ -74,8 +74,10 @@ An uploaded list without the four judged sub-scores and a `readiness` call score
 **judging screen** (next section) rather than hand-editing columns.
 
 **What this tool does not do: find creators.** There is no search, no platform API. You
-bring the list; it scores it. See "Scoped, not built" in
-[`HANDOVER.md`](creator-scout-agent/HANDOVER.md).
+bring the list; it scores it. That half is now scoped in
+[`DISCOVERY_PLAN.md`](creator-scout-agent/DISCOVERY_PLAN.md) — a tiered source inventory,
+a four-phase build order with a working $0 tier, and an honest account of what stays
+manual.
 
 ### Judge a list so it can be scored
 
