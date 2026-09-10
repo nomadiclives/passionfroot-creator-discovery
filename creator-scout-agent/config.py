@@ -100,17 +100,36 @@ INSTRUMENTS = {
     "tiktok": {
         "metric": METRIC_VIEW_RATE,
         "label": "View rate",
-        # PROVISIONAL. Fitted to the 11 TikTok/Instagram creators in the Craftly
-        # sheet (range 8.2%-185.8%, median ~28%). Algorithmic feeds push well
-        # beyond the follower base, so healthy rates here exceed 100%.
-        "bands": [(60.0, 5), (35.0, 4), (20.0, 3), (10.0, 2)],
-        "calibration": "provisional-n11",
+        # The product owner's own ladder, restored 2026-09-10. A refit was
+        # attempted and REVERTED: the sheet's rates use inconsistent
+        # denominators (8 rows divide one platform's views by followers summed
+        # across ALL platforms, 11 rows use a single platform), so the rates are
+        # not comparable to each other and cannot be ranked against fitted
+        # bands. Refitting demoted Harper Carroll from 1st to 10th on what was a
+        # denominator artifact, not a weakness.
+        # KNOWN LIMITATION: this ladder saturates — it is an engagement-rate
+        # ladder fed view-rate data, so 14 of 20 creators score 5/5 and a
+        # quarter of the total does little discriminating work. Fixing it needs
+        # per-platform follower counts. See HANDOVER.md.
+        "bands": [(8.0, 5), (5.0, 4), (3.0, 3), (1.0, 2)],
+        "calibration": "owner-ladder-known-saturating",
     },
     "instagram": {
         "metric": METRIC_VIEW_RATE,
         "label": "View rate",
-        "bands": [(60.0, 5), (35.0, 4), (20.0, 3), (10.0, 2)],
-        "calibration": "provisional-n11",
+        # The product owner's own ladder, restored 2026-09-10. A refit was
+        # attempted and REVERTED: the sheet's rates use inconsistent
+        # denominators (8 rows divide one platform's views by followers summed
+        # across ALL platforms, 11 rows use a single platform), so the rates are
+        # not comparable to each other and cannot be ranked against fitted
+        # bands. Refitting demoted Harper Carroll from 1st to 10th on what was a
+        # denominator artifact, not a weakness.
+        # KNOWN LIMITATION: this ladder saturates — it is an engagement-rate
+        # ladder fed view-rate data, so 14 of 20 creators score 5/5 and a
+        # quarter of the total does little discriminating work. Fixing it needs
+        # per-platform follower counts. See HANDOVER.md.
+        "bands": [(8.0, 5), (5.0, 4), (3.0, 3), (1.0, 2)],
+        "calibration": "owner-ladder-known-saturating",
     },
     "youtube": {
         "metric": METRIC_VIEW_RATE,

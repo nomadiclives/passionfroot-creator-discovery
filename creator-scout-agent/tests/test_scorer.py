@@ -66,12 +66,57 @@ def test_score_100_equals_weighted_times_twenty():
 def test_hand_calculated_scores():
     """Two creators verified by hand against the formula."""
     result = build()
-    # Joshua La Rosa: judged 5/5/-/4/5, resonance 71.8% on Instagram -> 5/5
-    #   1.500 + 1.250 + 1.250 + 0.400 + 0.500 = 4.900
+    # Joshua La Rosa: 5/5/5/4/5 -> 1.500+1.250+1.250+0.400+0.500 = 4.900
     assert by_name(result, "Joshua La Rosa")["weighted_score"] == pytest.approx(4.900, abs=0.005)
-    # Harper Carroll: judged 4/5/-/5/5, resonance 14.8% on Instagram -> 2/5
-    #   1.200 + 1.250 + 0.500 + 0.500 + 0.500 = 3.950
-    assert by_name(result, "Harper Carroll")["weighted_score"] == pytest.approx(3.950, abs=0.005)
+    # Harper Carroll: 4/5/5/5/5 -> 1.200+1.250+1.250+0.500+0.500 = 4.700
+    assert by_name(result, "Harper Carroll")["weighted_score"] == pytest.approx(4.700, abs=0.005)
+
+
+# The engine must reproduce the product owner's hand-scored sheet exactly. It
+# earns trust by agreeing with expert judgement and adding the gates on top —
+# not by quietly re-ranking on a metric whose denominators are inconsistent.
+SHEET_WEIGHTED = {
+    "The Tech Girl": 3.50, "Parker Prompts": 4.30,
+    "Mikey No Code": 4.05, "Andrew Kim": 3.95, "Joshua La Rosa": 4.90,
+    "Riley Brown": 4.40, "askcatgpt": 4.45, "Kyle Balmer": 3.85,
+    "Robo Nuggets": 4.35, "Maitri Mangal": 3.90, "genzbestie": 4.45,
+    "Mia Yilin": 3.95, "soojintech": 4.55, "Harper Carroll": 4.70,
+    "isabellagerli": 4.00, "Chams Eldin": 3.88,
+}
+
+
+def test_engine_reproduces_the_hand_scored_sheet():
+    result = build()
+    for name, expected in SHEET_WEIGHTED.items():
+        got = by_name(result, name)["weighted_score"]
+        assert got == pytest.approx(expected, abs=0.005), f"{name}: {got} != sheet {expected}"
+
+
+def test_roberto_nickson_is_the_one_sheet_row_that_breaks_its_own_ladder():
+    """The single divergence between engine and sheet, recorded deliberately.
+
+    Roberto Nickson has a 24.66% view rate on TikTok/Instagram. The sheet's own
+    ladder scores anything above 8% as 5/5, but the sheet records 4. The engine
+    applies the stated rule and returns 5, which lifts his weighted score from
+    3.90 to 4.15. This is a transcription slip in the sheet, not an engine bug —
+    every other scored row reproduces exactly.
+    """
+    creator = by_name(build(), "Roberto Nickson")
+    assert creator["weighted_score"] == pytest.approx(4.15, abs=0.005)
+    assert creator["engagement_score"] == 5.0
+
+
+def test_d3_saturation_is_a_known_limitation_not_a_surprise():
+    """Guards the documented weakness so it cannot be forgotten: the restored
+    ladder is an engagement-rate ladder fed view-rate data, so most creators
+    max out D3. Recorded as a test so the fix has a failing signal to aim at."""
+    scored = [c for c in build()["table"] if c["engagement_score"] is not None]
+    maxed = [c for c in scored if c["engagement_score"] == 5.0]
+    assert len(maxed) / len(scored) > 0.6, (
+        "D3 saturation has changed — if this is the per-platform follower fix "
+        "landing, update the bands and delete this test"
+    )
+    assert config.INSTRUMENTS["tiktok"]["calibration"] == "owner-ladder-known-saturating"
 
 
 # ---------------------------------------------------------------------------

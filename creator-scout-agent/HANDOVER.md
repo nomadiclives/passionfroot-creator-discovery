@@ -75,25 +75,54 @@ Composition: Awareness 4 (target 5-7), Credibility 9 (target 2-4), Conversion 4 
 5-7). **Credibility is over target** — most of this pool's audiences have category
 exposure without adoption. That is a real finding about the pool, not a bug.
 
-### What the engine caught that the sheet did not
+### The engine reproduces the hand-scored sheet
 
-- **No-Code Exits** was scored 3.0 and ranked. It is a newsletter, and the brief asks for
-  2 original videos. It is now dropped by the **deliverable gate** before scoring.
-- **sofieestudies** scored 4.05 with a written note that it might be a fake account. Now
-  dropped by the **authenticity gate**, which beats the score.
-- **No-Code Exits** was also given 5/5 on engagement with `N/A` view data.
-- **D3 saturation.** The sheet's TikTok/IG ladder (8%+ = 5) is calibrated for engagement
-  rate but was fed view rate, so 14 of 20 creators scored exactly 5.0 on a dimension
-  worth 25% of the total. Under the provisional bands, 4 creators move by 0.5+ weighted
-  points — Harper Carroll drops from 4.70 to 3.95 and is no longer top of the list.
+**16 of 17 scored creators match the sheet's weighted score exactly** (`test_engine_
+reproduces_the_hand_scored_sheet`). The app agrees with expert judgement and adds gates
+on top — it does not quietly re-rank.
+
+The one divergence is **Roberto Nickson**, and it is the sheet's slip, not the engine's:
+his 24.66% view rate scores 5/5 under the sheet's own ladder (anything above 8%), but the
+sheet records 4. The engine applies the stated rule, giving 4.15 rather than 3.90.
+Recorded in `test_roberto_nickson_is_the_one_sheet_row_that_breaks_its_own_ladder`.
+
+### What the engine catches that the sheet did not
+
+- **No-Code Exits** was scored 3.0 and ranked. It is a newsletter and the brief asks for
+  2 original videos — now dropped by the **deliverable gate** before scoring. It was also
+  given 5/5 on engagement with `N/A` view data.
+- **sofieestudies** scored 4.05 alongside a written note that it might be a fake account.
+  Now dropped by the **authenticity gate**, which beats the score.
+
+### ⚠️ D3 is a known limitation — do not "fix" it without per-platform followers
+
+The TikTok/Instagram ladder (`8% = 5`) is an **engagement-rate** ladder being fed
+**view-rate** data, so **14 of 20 creators score 5/5** and a quarter of the total weight
+does little discriminating work. `test_d3_saturation_is_a_known_limitation_not_a_surprise`
+pins this so it cannot be forgotten.
+
+**A refit was attempted and reverted.** The blocker is that the sheet's rates use
+**inconsistent denominators**:
+
+| | Rows | Denominator |
+|---|---|---|
+| Blended | 8 | one platform's views ÷ followers summed across **all** platforms |
+| Single | 11 | one platform's views ÷ **that platform's** followers |
+
+Harper Carroll's 14.8% divides one platform's views by three platforms' followers, so it
+is structurally understated. Refitting demoted her from 1st to 10th on that artifact.
+The rates are not comparable to each other and must not be ranked against fitted bands.
+
+**The fix is per-platform follower counts**, not new bands. Once the schema carries them,
+refit and delete the saturation test.
 
 ## What is NOT built
 
 | Component | File | Notes for whoever picks this up |
 |---|---|---|
-| Flask API | `app.py` | Routes needed: `GET /` (Screen 1), `POST /shortlist` (Screen 2), `POST /api/score`, `POST /export.csv`, `GET+POST /api/schedule`, `POST /api/schedule/run`. `scorer.build_shortlist(brief, csv)` already returns everything the templates need — see its return dict. |
-| Screen 1 — brief input | `templates/index.html` | Fields per brief: brand, product, goal (awareness/conversion/UGC), audience, platform checkboxes, CPM (default 50), follower band dropdown, shortlist slider 15-20, exclusions, submit. |
-| Screen 2 — shortlist | `templates/results.html` | Locked-criteria summary (`result["criteria"]`), scored table (`result["table"]`), composition panel (`result["composition"]`), Export CSV button. Role colours: Awareness=blue, Credibility=green, Conversion=orange — already on each row as `role_colour`. |
+| Flask API | `app.py` | `GET /` -> Screen 1. `POST /shortlist` -> Screen 2. `POST /export.csv` -> `scorer.to_csv(result)`. Build the brief dict from the form, pass to `scorer.build_shortlist(brief, config.CREATOR_DATA)`. |
+| Screen 1 — brief input | `templates/index.html` | Fields: brand, product, **category** (drives readiness), goal, audience, platform checkboxes (tiktok/instagram/youtube/**linkedin**), CPM (default 50), follower band, shortlist size 15-20, exclusions. |
+| Screen 2 — shortlist | `templates/results.html` | `result["criteria"]` locked-criteria panel; `result["table"]` scored rows; `result["composition"]` role panel; Export CSV. Each row has `role_colour` (Awareness=blue, Credibility=green, Conversion=orange). **Render all five statuses** — Keep / Drop / NEEDS_REFRESH / NEEDS_REVIEW / NEEDS_CALIBRATION — with `status_reason` visible; a creator must never disappear. Show `sourced_from` + `sourced_date`, and flag `rate_reproducible: false` rows. |
 | Stylesheet | `static/styles.css` | Plain CSS, no framework. |
 | Schedule console | `templates/schedule.html` | Cadence daily/weekly/biweekly, last run, next run, Run Now. |
 | Scheduler | `scheduler.py` | `schedule` lib, default Mon 09:00, reads `data/pipeline_intel.json`, writes `reports/soft_roster_YYYY-MM-DD.csv`, logs to `logs/scheduler.log`. Config constants already exist in `config.py`. |
