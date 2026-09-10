@@ -4,3 +4,4 @@ __pycache__/
 creator-scout-agent/reports/*.csv
 creator-scout-agent/logs/*.log
 creator-scout-agent/data/schedule_state.json
+creator-scout-agent/data/uploads/

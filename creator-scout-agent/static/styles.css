@@ -389,3 +389,23 @@ code {
 .alert-info > strong { display: block; margin-bottom: 6px; color: var(--blue); }
 .alert-info p { margin: 8px 0 0; }
 .alert-info p:first-of-type { margin-top: 6px; }
+
+
+/* Creator-pool upload: the file field, its errors, and the pool shown on Screen 2 */
+.banner-error {
+  border: 1px solid var(--warn, #b4530a);
+  border-left-width: 4px;
+  background: var(--warn-bg, #fff6ef);
+  padding: 0.9rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+.banner-error p { margin: 0.4rem 0 0; }
+input[type="file"] {
+  padding: 0.5rem;
+  border: 1px dashed var(--rule, #c9cdd4);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  width: 100%;
+}
+.pool-source { font-size: 0.9rem; opacity: 0.85; }

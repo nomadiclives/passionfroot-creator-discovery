@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ criteria.brand_name }} shortlist — Creator Campaign Scout{% endblock %}
 
+{% macro hidden_pool(result) %}
+<input type="hidden" name="pool_token" value="{{ result.pool.token }}">
+{% endmacro %}
+
 {% macro hidden_brief(brief) %}
   {% for field in ["brand_name", "product_description", "category", "campaign_goal",
                    "target_audience", "exclusions"] %}
@@ -22,10 +26,20 @@
       {{ counts.shortlisted }} shortlisted of {{ counts.evaluated }} evaluated ·
       scored against <strong>{{ criteria.category }}</strong>
     </p>
+    <p class="lede pool-source">
+      {% if result.pool.kind == 'upload' %}
+        Pool: <strong>{{ result.pool.filename }}</strong> — {{ result.pool.count }}
+        creators you uploaded
+      {% else %}
+        Pool: <strong>bundled sample</strong> ({{ result.pool.filename }}) —
+        <a href="{{ url_for('index') }}">upload your own list</a> to score a real brief
+      {% endif %}
+    </p>
   </div>
   <div class="hero-actions">
     <form method="post" action="{{ url_for('export_csv') }}">
       {{ hidden_brief(brief) }}
+      {{ hidden_pool(result) }}
       <button type="submit" class="btn btn-primary">Export CSV</button>
     </form>
     <a class="btn" href="{{ url_for('index') }}">Edit brief</a>

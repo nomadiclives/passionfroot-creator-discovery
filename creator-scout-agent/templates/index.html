@@ -19,7 +19,39 @@
 </div>
 {% endif %}
 
-<form class="card form" method="post" action="{{ url_for('shortlist') }}">
+{% if upload_error %}
+<div class="banner banner-error">
+  <strong>That file could not be read.</strong>
+  <p>{{ upload_error }}</p>
+  <p class="help">
+    Nothing was scored. The brief below is as you submitted it — fix the file and
+    try again, or leave the upload empty to score the bundled sample pool.
+  </p>
+</div>
+{% endif %}
+
+<form class="card form" method="post" action="{{ url_for('shortlist') }}"
+      enctype="multipart/form-data">
+
+  <label class="field">
+    <span class="field-label">
+      Creator list
+      <span class="hint">CSV or JSON — leave empty to score the bundled sample</span>
+    </span>
+    <input type="file" name="creator_file" accept=".csv,.json,text/csv,application/json">
+    <span class="help">
+      Required columns: <code>{{ required_fields|join('</code>, <code>')|safe }}</code>.
+      Add the four judged sub-scores
+      (<code>{{ judged_fields|join('</code>, <code>')|safe }}</code>, each 1–5)
+      and a <code>readiness</code> call, or every row comes back
+      <strong>NEEDS_REVIEW</strong> — the engine will not invent a judgement any
+      more than it will invent a metric.
+      <a href="{{ url_for('creator_template') }}">Download a template CSV</a>.
+      With nothing uploaded this scores the bundled pool of
+      {{ bundled_count }} creators.
+    </span>
+  </label>
+
   <div class="grid">
     <label class="field">
       <span class="label">Brand</span>

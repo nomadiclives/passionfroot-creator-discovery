@@ -29,6 +29,7 @@ import os
 import re
 
 import agent_spec
+import creator_pool
 import config
 import scheduler
 import scorer
@@ -103,20 +104,25 @@ def brief_from_form(form) -> dict:
     return brief
 
 
-def run_brief(form) -> tuple[dict, dict]:
+def run_brief(form, files=None) -> tuple[dict, dict]:
+    """Score a brief against the pool the request carries.
+
+    An uploaded file wins; a pool token from a previous upload is next (this is
+    what keeps Export CSV honest); the bundled sample is the fallback.
+    """
     brief = brief_from_form(form)
-    result = scorer.build_shortlist(brief, config.CREATOR_DATA)
+    source, provenance = creator_pool.resolve(form, files)
+    result = scorer.build_shortlist(brief, source)
+    result["pool"] = provenance
     return brief, result
 
 
 # ---------------------------------------------------------------------------
 # Screen 1 — the brief
 # ---------------------------------------------------------------------------
-@app.get("/")
-def index():
-    return render_template(
-        "index.html",
-        brief=config.DEFAULT_BRIEF,
+def _index_context() -> dict:
+    """Everything Screen 1 needs, shared by the happy path and the error re-render."""
+    return dict(
         platforms=[
             {
                 "slug": slug,
@@ -132,6 +138,49 @@ def index():
         spec=agent_spec.summary(),
         weights=config.SCORING_WEIGHTS,
         dimension_points=config.DIMENSION_POINTS,
+        required_fields=scorer.REQUIRED_FIELDS,
+        judged_fields=scorer.JUDGED_FIELDS,
+        bundled_count=_bundled_count(),
+    )
+
+
+def _bundled_count() -> int:
+    try:
+        return len(scorer.load_creators(config.CREATOR_DATA))
+    except Exception:  # noqa: BLE001 - a broken bundle must not break Screen 1
+        return 0
+
+
+@app.get("/")
+def index():
+    return render_template(
+        "index.html", brief=config.DEFAULT_BRIEF, **_index_context()
+    )
+
+
+@app.get("/creator-template.csv")
+def creator_template():
+    """A blank row with every column the engine reads, so an upload can be filled in."""
+    columns = [
+        "name", "platform", "followers", "resonance_rate",
+        "audience_match_score", "content_match_score", "geo_match_score",
+        "commercial_maturity_score", "readiness", "readiness_category",
+        "location", "comment_quality", "current_sponsors", "notes",
+        "source", "sourced_from", "sourced_date",
+    ]
+    example = [
+        "Example Creator", "TikTok, Instagram", "120000", "8.4",
+        "4", "3", "5", "4", "exposed", "AI app-building tools",
+        "US", "substantive", "", "why they fit",
+        "manual", "where you found them", "2026-09-10",
+    ]
+    body = ",".join(columns) + "\n" + ",".join(
+        f'"{v}"' if "," in v else v for v in example
+    ) + "\n"
+    return Response(
+        body,
+        mimetype="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="creator-template.csv"'},
     )
 
 
@@ -143,7 +192,20 @@ def shortlist():
     # GET is supported so the screen can be reloaded or linked; it runs the
     # default campaign slot rather than 404ing.
     source = request.form if request.method == "POST" else request.args
-    brief, result = run_brief(source)
+    try:
+        brief, result = run_brief(source, request.files)
+    except creator_pool.PoolError as exc:
+        # Never fall back to the bundled pool on a bad upload: the screen would
+        # look right and describe creators the operator never submitted.
+        return (
+            render_template(
+                "index.html",
+                brief=brief_from_form(source),
+                upload_error=str(exc),
+                **_index_context(),
+            ),
+            400,
+        )
     return render_template(
         "results.html",
         brief=brief,
@@ -167,7 +229,10 @@ def shortlist():
 @app.route("/export.csv", methods=["GET", "POST"])
 def export_csv():
     source = request.form if request.method == "POST" else request.args
-    _, result = run_brief(source)
+    try:
+        _, result = run_brief(source, request.files)
+    except creator_pool.PoolError as exc:
+        return Response(f"Cannot export: {exc}\n", status=400, mimetype="text/plain")
     brand = (result["criteria"]["brand_name"] or "shortlist").lower().replace(" ", "-")
     return Response(
         scorer.to_csv(result),

@@ -225,6 +225,88 @@ be private.
 
 ---
 
+## Bring your own creator list — added, working, untested
+
+Until this change the web app could only ever score `data/creators.json`. The engine
+had always accepted an arbitrary list (`build_shortlist(brief, creators)`), but nothing
+in the UI reached that argument, so every brief scored the same bundled pool regardless
+of what was typed into it. Reported from real use: *"at no point was I asked to upload a
+csv, it just scores the same 18 creators no matter what the brief"*. That was accurate.
+
+**What now exists**
+
+| Piece | Behaviour |
+|---|---|
+| `creator_pool.py` | Parses an uploaded CSV/JSON, parks it under a token, resolves which pool a request scores |
+| Screen 1 file field | `creator_file`, optional — empty means the bundled sample, and the field says so |
+| `GET /creator-template.csv` | A blank row carrying every column the engine reads |
+| Pool line on Screen 2 | Names the file and row count, or says "bundled sample" |
+| Export CSV | Carries `pool_token` in a hidden field, so the export re-runs against the rows the screen showed |
+| Bad upload | HTTP 400 back to Screen 1 with the parse error; **never** a silent fallback to the bundled pool |
+
+**Verified by hand against a running server** — a 3-creator CSV in a new category
+(`Fintech apps`) scored those 3 and only those 3; the export re-run returned the same
+3 rows, not the bundled 25; a malformed file returned 400 with an actionable message;
+suite green at 89.
+
+**⚠️ Not verified by tests.** No test covers `creator_pool.py` or the upload routes.
+The 89 that pass are the pre-existing suite, which still runs the bundled pool. First
+job for whoever picks this up: tests for parse, token round-trip, export-matches-screen,
+the retention sweep, and the bad-upload 400. Until those exist, treat upload as working
+but unguarded — a refactor could silently break it.
+
+**Known rough edge.** An uploaded list without the four judged sub-scores and a
+`readiness` call comes back entirely `NEEDS_REVIEW` — correct by design, but it means a
+raw sourcing export scores nothing until a human fills those columns in. The template
+CSV includes them; see the scoping note below.
+
+---
+
+## Scoped, not built
+
+Two gaps we identified and deliberately deferred. Neither is started.
+
+### 1. Discovery / sourcing — the missing first half
+
+The app scores creators you already have. It cannot find them. No search, no platform
+API, no scraping. Steps 2 and 3 of the spec (the discovery playbook and screening) are
+not implemented at all — only Steps 1, 4, 5, 5a and 6 are.
+
+This was scoped out by the original build brief, which specified `scorer.py` as
+*"accepts a list of creators as input"* and the enrichment layer as an inert stub. It is
+also constrained by the spec itself, which states that an LLM cannot reliably surface
+live social data and that Step 2 therefore produces a query plan, not creators. The
+never-fabricate rule closes the door on any model-generated candidate list.
+
+Note the distinction: `enricher.py` is **enrichment**, not discovery. It takes a handle
+you already have and fetches verified metrics for it. Finding handles you do not have is
+a different call on the same plumbing.
+
+Three routes, cheapest first:
+
+| Route | What it yields | Cost |
+|---|---|---|
+| YouTube Data API | Real keyword and channel search, public subscriber/view stats. Would implement the spec's YouTube pass honestly | Free quota |
+| Phantom Buster | Instagram/TikTok/LinkedIn extraction via the operator's own connected accounts | Existing plan |
+| Modash / Favikon search endpoints | The real find-at-scale answer: filter by follower band, geo, engagement, topic. Same providers `config.py` already names | Paid |
+
+Realistic ceiling: these cover Search Pass 1 and part of Pass 3. The spec's strongest
+passes — competitor sponsorship audits, peer-graph discovery, Discord and subreddit
+moderators — are judgement work no API exposes, and stay manual.
+
+Shape if built: a `discovery.py` producing candidates into the existing scorer, plus a
+screen ahead of Screen 1, so the flow becomes source → score → shortlist.
+
+### 2. In-app judging
+
+Four of the five dimensions are human scores typed into JSON by hand, plus the readiness
+call. That is what makes an uploaded raw list score as `NEEDS_REVIEW`. A judging screen —
+score the four sub-scores and readiness per creator in the browser, write back to the
+pool — is what would make upload genuinely usable end to end. Not started, and the fork
+worth deciding first: template-and-fill (small) versus an in-app judging UI (larger).
+
+---
+
 ## Still open
 
 Nothing here blocks running the app, and the app is deployed.
@@ -236,6 +318,8 @@ Nothing here blocks running the app, and the app is deployed.
 | **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
 | **Judging the pool for a second category** | `data/pipeline_intel.json` holds live campaigns only, and every readiness judgement in `data/creators.json` is against `AI app-building tools`. A brief in any other category needs the pool judged against it (`readiness` + `readiness_category` per row) before it can score. |
 | **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. On Render's free tier it never will — that needs a background worker or a cron job on a paid plan. |
+| **Tests for the upload path** | `creator_pool.py` and the upload/export routes have no automated coverage. Verified by hand only. |
+| **Uploads are ephemeral** | Parked under `data/uploads/` with a 6-hour sweep, and the Render filesystem resets on deploy. An export attempted after expiry returns a clear error, but the pool is gone. |
 | **Authentication** | There is none. Anyone with the deployed URL sees the full shortlist, including the commercial notes on named creators. Fine for a demo, not for real use. |
 | **End-to-end check of the live deploy** | The build and the gunicorn command are verified locally; the deployed URL itself has not been walked through screen by screen. |
 | **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |

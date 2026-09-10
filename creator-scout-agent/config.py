@@ -21,6 +21,12 @@ SPEC_FILE = os.path.join(AGENTS_DIR, "creator-campaign-scout.md")
 
 CREATOR_DATA = os.path.join(DATA_DIR, "creators.json")
 CREATOR_CSV = CREATOR_DATA  # legacy alias
+
+# Uploaded creator pools are parked here so an Export CSV re-run scores the same
+# rows the screen showed. Ephemeral by design — see UPLOAD_RETENTION_HOURS.
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+UPLOAD_MAX_BYTES = 4 * 1024 * 1024
+UPLOAD_RETENTION_HOURS = 6
 PIPELINE_INTEL = os.path.join(DATA_DIR, "pipeline_intel.json")
 SCHEDULE_STATE = os.path.join(DATA_DIR, "schedule_state.json")
 SCHEDULER_LOG = os.path.join(LOGS_DIR, "scheduler.log")

@@ -62,7 +62,22 @@ did not have*:
 category the creator pool was never judged against — Screen 2 says so at the top when it
 happens, and names both categories.
 
-### Add a creator
+### Score your own creator list
+
+Screen 1 has a **Creator list** field: upload a CSV or JSON and the brief scores those
+creators instead of the bundled sample. Leave it empty to score the bundled pool.
+[Download the template CSV](http://localhost:5000/creator-template.csv) from the running
+app for every column the engine reads.
+
+An uploaded list without the four judged sub-scores and a `readiness` call scores as
+`NEEDS_REVIEW` on every row — the engine will not invent judgement. Fill those columns
+in, or see `HANDOVER.md` for the in-app judging screen that would remove the step.
+
+**What this tool does not do: find creators.** There is no search, no platform API. You
+bring the list; it scores it. See "Scoped, not built" in
+[`HANDOVER.md`](creator-scout-agent/HANDOVER.md).
+
+### Add a creator to the bundled pool
 
 Add a row to `creator-scout-agent/data/creators.json`. Required: `name`, `platform`,
 `followers`, `resonance_rate`. Also record `source`, `sourced_from` and `sourced_date` —
