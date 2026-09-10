@@ -18,7 +18,7 @@ python app.py                 # http://localhost:5000
 | Command | What it does |
 |---|---|
 | `python app.py` | Serves both screens and the schedule console |
-| `python -m pytest tests/` | The test suite — 83 tests |
+| `python -m pytest tests/` | The test suite — 86 tests |
 | `python scheduler.py --once` | One discovery pass now, then exit |
 | `python scheduler.py` | The blocking loop (default Monday 09:00) |
 | `python scheduler.py --status` | Print schedule state as JSON |
@@ -85,6 +85,9 @@ the engine declining to produce a number it does not have:
 
 Every one of them is rendered on Screen 2 with its reason. A creator never silently
 disappears — a row that vanishes is indistinguishable from a creator nobody sourced.
+
+When a refusal empties the roster entirely, Screen 2 says so at the top rather than
+leaving a blank panel: how many creators were held back, why, and what to do about it.
 
 **Gates run before scoring and beat it.** A newsletter is not a weak candidate for a
 video brief, it is not a candidate; a high engagement rate on suspected fake comments is
@@ -157,7 +160,7 @@ static/          styles.css
 data/            creators.json, pipeline_intel.json
 reports/         soft_roster_YYYY-MM-DD.csv (generated)
 logs/            scheduler.log (generated)
-tests/           83 tests
+tests/           86 tests
 ```
 
 Contributor rules — the constraints that break the product if violated — are in

@@ -1,12 +1,17 @@
 # Handover — Creator Campaign Scout Agent
 
-**Point reached:** feature-complete — engine, web app, scheduler and enrichment stub all
-built and exercised. **Branch:** `claude/sweet-faraday-hpygoj`
-**Test suite:** `python -m pytest tests/` — 83 passing.
+**Status: handed over 2026-09-10.** Feature-complete — engine, web app, scheduler and
+enrichment stub all built, exercised in a real browser, and merged to `main`.
+**Test suite:** `python -m pytest tests/` — 86 passing.
 
-The build was paused deliberately partway and has since been finished. What remains is
-listed under **Still open** at the bottom: none of it blocks running the app, and one
-item (per-platform follower counts) blocks a real fix to Dimension 3.
+The build was paused deliberately partway and has since been finished. Nothing in this
+file is a blocker on running the app. What remains is listed under **Still open**; the
+one item that gates real improvement rather than polish is **per-platform follower
+counts**, which is a data-sourcing task, not a code task.
+
+**Read this before the first real brief:** a brief in a category the pool was not judged
+against returns an empty roster on purpose. See *Readiness is category-relative* below —
+it is the single most likely thing to be mistaken for a bug.
 
 ---
 
@@ -27,8 +32,9 @@ item (per-platform follower counts) blocks a real fix to Dimension 3.
 | Scheduler | `scheduler.py` | ✅ `--once` and blocking loop; writes dated soft rosters |
 | Enrichment stub | `enricher.py` | ✅ inert by default; gaps-only merge; UNVERIFIED on failure |
 | Pipeline intel | `data/pipeline_intel.json` | ✅ live campaigns only; test briefs live in `tests/fixtures/` |
-| README | `README.md` | ✅ written |
-| Tests | `tests/` | ✅ 83 passing |
+| Empty-roster explanation | `templates/results.html` | ✅ Screen 2 leads with why a roster is empty, not just per-row |
+| READMEs | `README.md`, `../README.md` | ✅ project and repo root |
+| Tests | `tests/` | ✅ 86 passing |
 
 ### The data is real now
 
@@ -155,6 +161,17 @@ nobody sourced, so nothing is filtered out of the table.
 CSV export re-runs the same brief through the same engine rather than serialising a
 cached result, so the file and the screen cannot drift apart. A test asserts the row
 counts match.
+
+**An empty roster explains itself.** The engine's most defensible refusal was also its
+most bug-looking output: a brief in an unjudged category returned zero shortlisted, and
+the only explanation sat per-row in a greyed table below an empty composition panel.
+Screen 2 now leads with it — how many creators are held back, which category they were
+judged against, which one the brief scores against, and the two fields to set to score
+the new one. A second, separate banner covers emptiness from any other cause (a
+LinkedIn-only brief drops the whole pool on the platform check), so an unrelated empty
+result is never blamed on the readiness guard. `build_shortlist()` returns
+`readiness_mismatch` and `judged_categories` for this, so the UI reads a flag rather
+than parsing a reason string.
 
 ### Verification — all six checks now pass
 
