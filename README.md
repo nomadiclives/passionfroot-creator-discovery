@@ -12,11 +12,13 @@ pip install -r requirements.txt
 python app.py                 # then open http://localhost:5000
 ```
 
-**Live:** deployed on Render — `https://<your-service>.onrender.com`
-<!-- ^ replace with the real URL from your Render dashboard -->
+**Live:** the app is deployable on Render from [`render.yaml`](render.yaml), but no
+public URL is recorded here yet — paste yours from the Render dashboard over this line
+once the service is up.
 
-It sleeps after ~15 minutes idle, so the first request takes about 50 seconds to wake.
-See [Deploying](#deploying) for how it is built and what the free tier does.
+A free-tier service sleeps after ~15 minutes idle, so the first request takes about 50
+seconds to wake. See [Deploying](#deploying) for how it is built and what the free tier
+does.
 
 ---
 
@@ -37,14 +39,16 @@ See [Deploying](#deploying) for how it is built and what the free tier does.
 
 | Panel | What it tells you |
 |---|---|
-| **Count strip** | Shortlisted vs. held back, at a glance |
+| **Count strip** | Five counts at a glance: shortlisted, needs review, needs refresh, needs calibration, dropped |
 | **Locked criteria** | Exactly what the brief was interpreted as — check this first if the output surprises you |
+| **Dimension 3 instruments** | Which resonance instrument each platform is scored on, and whether its bands are fitted |
 | **Campaign composition** | Role counts against target, total reach, modelled budget |
 | **Every creator evaluated** | Every row, scored or not, with its reason and its source |
 | **Outreach angles** | A per-creator pitch angle, keyed to the assigned role |
 
-Every creator carries a status, and four of the five mean *the engine declined to
-produce a number it did not have*:
+Every creator carries a status. `Keep` and `Drop` are decisions the engine made; the
+other three are refusals — *the engine declining to produce a number or a judgement it
+did not have*:
 
 | Status | What it means | What to do |
 |---|---|---|
@@ -92,8 +96,11 @@ Add upcoming briefs to `creator-scout-agent/data/pipeline_intel.json` (`id`,
 then:
 
 ```bash
-python scheduler.py --once    # one pass now
-python scheduler.py           # blocking loop, default Monday 09:00
+cd creator-scout-agent
+python scheduler.py --once      # one pass now, then exit
+python scheduler.py             # blocking loop, default Monday 09:00
+python scheduler.py --status    # print schedule state as JSON
+python scheduler.py --cadence daily   # override the cadence for this run
 ```
 
 Rosters land in `creator-scout-agent/reports/soft_roster_YYYY-MM-DD.csv`, and the
