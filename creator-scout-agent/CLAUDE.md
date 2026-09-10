@@ -79,6 +79,14 @@ The three levels are invariant; the **category** they are judged against is a ca
 parameter (`brief["category"]`). Readiness is a human judgement: absent, the creator is
 `NEEDS_REVIEW` and is never given a guessed role.
 
+**Readiness does not transfer between categories.** A judgement is recorded against a
+named category (`readiness_category` on the row) and is only evidence about that one.
+Run a brief in a different category and those rows come back `NEEDS_REVIEW` — reusing
+the judgement would be inventing judgement, which is the same rule as never inventing a
+metric. This matters most to `scheduler.py`, which runs several categories against one
+pool. A row with no `readiness_category` predates the field and still scores: the guard
+fires on a known mismatch, never on absence.
+
 **This replaced the D1/D2 rule** (`D1 >= 4 AND D2 >= 4 -> Credibility`, etc.). That rule
 was a lossy proxy: it measures who the audience is and what the creator makes, then
 infers adoption. Against the hand-scored Craftly set it mislabelled **7 of 18** creators —
@@ -135,10 +143,10 @@ scorer.py       the scoring engine — Steps 1, 4, 5, 5a of the skill
 enricher.py     API enrichment stub (Favikon / Modash), off by default
 scheduler.py    weekly soft-roster discovery loop
 app.py          Flask API + server-rendered UI
-templates/      index.html (Screen 1 brief), results.html (Screen 2 shortlist),
-                schedule.html (schedule console)
+templates/      base.html (shell), index.html (Screen 1 brief),
+                results.html (Screen 2 shortlist), schedule.html (schedule console)
 static/         styles.css
-data/           sample_creators.csv, pipeline_intel.json
+data/           creators.json (sourced), pipeline_intel.json
 reports/        soft_roster_YYYY-MM-DD.csv output (auto-created)
 logs/           scheduler.log (auto-created)
 ```
@@ -154,8 +162,13 @@ After any change, actually run the app and confirm the UI renders — do not ass
 5. Export to CSV downloads a valid file with a header row.
 6. `GET /schedule` (and `/api/schedule`) returns a valid JSON response.
 
-`python -m pytest tests/` covers 1, 3, 4, 6, the formula identity, and spec/config
-agreement; the browser checks still matter for 2 and 5.
+`python -m pytest tests/` covers all six against the Flask test client, plus the formula
+identity and spec/config agreement. **The test client is not a browser**: it proves the
+routes answer and the HTML contains what it should, not that the page renders. Drive the
+real app for anything that changes a template or the stylesheet.
+
+`/schedule` answers HTML to a browser and JSON to `?format=json` or an
+`Accept: application/json` header; `/api/schedule` is always JSON.
 
 ## Known deviations from the spec
 

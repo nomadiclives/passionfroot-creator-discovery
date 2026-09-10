@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Creator Campaign Scout{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  {# Inline so the page never requests a favicon it does not have. #}
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>◆</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark">◆</span>
+        <span>Creator Campaign Scout</span>
+      </a>
+      <nav>
+        <a href="{{ url_for('index') }}">Brief</a>
+        <a href="{{ url_for('schedule_console') }}">Schedule</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="wrap foot">
+    <p>
+      Scored against <code>{{ spec.path if spec else 'agents/creator-campaign-scout.md' }}</code>.
+      Metrics are never invented — a missing number is reported as a gap, not filled in.
+    </p>
+  </footer>
+</body>
+</html>

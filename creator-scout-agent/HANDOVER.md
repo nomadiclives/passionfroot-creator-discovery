@@ -1,10 +1,12 @@
 # Handover — Creator Campaign Scout Agent
 
-**Point reached:** scoring engine complete on **real sourced data**; web app not started.
-**Branch:** `claude/sweet-faraday-hpygoj`
-**Test suite:** `python -m pytest tests/` — 26 passing.
+**Point reached:** feature-complete — engine, web app, scheduler and enrichment stub all
+built and exercised. **Branch:** `claude/sweet-faraday-hpygoj`
+**Test suite:** `python -m pytest tests/` — 83 passing.
 
-The build was paused deliberately partway. This file is the resume point.
+The build was paused deliberately partway and has since been finished. What remains is
+listed under **Still open** at the bottom: none of it blocks running the app, and one
+item (per-platform follower counts) blocks a real fix to Dimension 3.
 
 ---
 
@@ -17,7 +19,16 @@ The build was paused deliberately partway. This file is the resume point.
 | Campaign config | `config.py` | ✅ weights locked, **instruments**, gates, readiness roles |
 | Scoring engine | `scorer.py` | ✅ 5 dimensions, instrument-based D3, gates, readiness roles |
 | **Real creator data** | `data/creators.json` | ✅ 20 sourced creators + 5 LinkedIn calibration cohort |
-| Tests | `tests/` | ✅ 26 passing |
+| Flask API + UI | `app.py` | ✅ both screens, CSV export, schedule console, JSON surfaces |
+| Screen 1 — brief | `templates/index.html` | ✅ every field; verified in a real browser |
+| Screen 2 — shortlist | `templates/results.html` | ✅ all 25 rows, all five statuses, provenance |
+| Schedule console | `templates/schedule.html` | ✅ cadence, last/next run, Run Now, pipeline |
+| Stylesheet | `static/styles.css` | ✅ plain CSS, no framework |
+| Scheduler | `scheduler.py` | ✅ `--once` and blocking loop; writes dated soft rosters |
+| Enrichment stub | `enricher.py` | ✅ inert by default; gaps-only merge; UNVERIFIED on failure |
+| Pipeline intel | `data/pipeline_intel.json` | ✅ 1 live campaign + 2 clearly fictional examples |
+| README | `README.md` | ✅ written |
+| Tests | `tests/` | ✅ 83 passing |
 
 ### The data is real now
 
@@ -116,37 +127,69 @@ The rates are not comparable to each other and must not be ranked against fitted
 **The fix is per-platform follower counts**, not new bands. Once the schema carries them,
 refit and delete the saturation test.
 
-## What is NOT built
+## Readiness is category-relative — added while wiring the scheduler
 
-| Component | File | Notes for whoever picks this up |
-|---|---|---|
-| Flask API | `app.py` | `GET /` -> Screen 1. `POST /shortlist` -> Screen 2. `POST /export.csv` -> `scorer.to_csv(result)`. Build the brief dict from the form, pass to `scorer.build_shortlist(brief, config.CREATOR_DATA)`. |
-| Screen 1 — brief input | `templates/index.html` | Fields: brand, product, **category** (drives readiness), goal, audience, platform checkboxes (tiktok/instagram/youtube/**linkedin**), CPM (default 50), follower band, shortlist size 15-20, exclusions. |
-| Screen 2 — shortlist | `templates/results.html` | `result["criteria"]` locked-criteria panel; `result["table"]` scored rows; `result["composition"]` role panel; Export CSV. Each row has `role_colour` (Awareness=blue, Credibility=green, Conversion=orange). **Render all five statuses** — Keep / Drop / NEEDS_REFRESH / NEEDS_REVIEW / NEEDS_CALIBRATION — with `status_reason` visible; a creator must never disappear. Show `sourced_from` + `sourced_date`, and flag `rate_reproducible: false` rows. |
-| Stylesheet | `static/styles.css` | Plain CSS, no framework. |
-| Schedule console | `templates/schedule.html` | Cadence daily/weekly/biweekly, last run, next run, Run Now. |
-| Scheduler | `scheduler.py` | `schedule` lib, default Mon 09:00, reads `data/pipeline_intel.json`, writes `reports/soft_roster_YYYY-MM-DD.csv`, logs to `logs/scheduler.log`. Config constants already exist in `config.py`. |
-| Enrichment stub | `enricher.py` | `enrich_creator(handle, platform) -> dict`, inert while `ENRICHMENT_ENABLED=False`, returns input unchanged with `source='manual'`, flags `UNVERIFIED` on API fallback. **`scorer.build_shortlist()` already calls `enricher.apply_enrichment()` when the toggle is on** — that import will fail until this file exists, so build it before flipping the toggle. |
-| Sample pipeline intel | `data/pipeline_intel.json` | Upcoming brand brief categories for the scheduler loop. |
-| README | `README.md` | Not written. `CLAUDE.md` currently carries the run instructions. |
+The scheduler runs several campaign categories against one creator pool, which exposed a
+hole: every `readiness` value in `data/creators.json` was judged against **Craftly's**
+category, and role comes from readiness. Reusing those judgements for a campaign in
+another category would have produced confident roles from evidence about something else
+— inventing judgement, which is the same rule as never inventing a metric.
 
-### Verification still owed
+Rows now carry `readiness_category`, and `score_creator()` returns `NEEDS_REVIEW` when it
+does not match `brief["category"]`. Absence of the tag is not a mismatch: an untagged row
+still scores, so the guard fires only on a **known** mismatch.
 
-From the original brief, these could not be checked because the app does not exist yet:
+The visible effect: the two example pipeline campaigns shortlist **0 of 25** and report 18
+rows for re-judgement. That is the guard working, not a broken run.
 
-1. `python app.py` starts without errors — **not verified**
-2. `localhost:5000` renders Screen 1 with all fields — **not verified**
-3. Form submit renders Screen 2 with a scored table — **not verified**
-4. Weighted scores correct for 3+ creators — **verified** (above, via pytest)
-5. Export to CSV downloads a valid file — **partially**: `scorer.to_csv()` is tested for
-   header and row count; the browser download path is not built
-6. `/schedule` returns valid JSON — **not verified**
+## What the UI is for
+
+The screens exist to make the engine's refusals legible. All 25 evaluated creators render
+on Screen 2 — Keep, Drop, NEEDS_REFRESH, NEEDS_REVIEW, NEEDS_CALIBRATION — each with its
+reason, its provenance (`sourced_from`, `sourced_date`) and, where it applies, the
+`rate not reproducible` flag. A row that disappears is indistinguishable from a creator
+nobody sourced, so nothing is filtered out of the table.
+
+CSV export re-runs the same brief through the same engine rather than serialising a
+cached result, so the file and the screen cannot drift apart. A test asserts the row
+counts match.
+
+### Verification — all six checks now pass
+
+From the original brief, verified by driving the real app in Chromium (not only the
+Flask test client, which proves routes answer but not that pages render):
+
+1. `python app.py` starts without errors — **verified**
+2. `localhost:5000` renders Screen 1 with all fields — **verified**, 13 inputs present
+3. Form submit renders Screen 2 with a scored table — **verified**, 25 rows, 17 shortlisted
+4. Weighted scores correct for 3+ creators — **verified** via pytest, and 16/17 reproduce
+   the hand-scored sheet exactly
+5. Export to CSV downloads a valid file — **verified**, `attachment` header, 26 lines
+   (1 header + 25 rows)
+6. `/schedule` returns valid JSON — **verified** on `/api/schedule`, `?format=json` and
+   an `Accept: application/json` header; the same route serves HTML to a browser
+
+The only console error in the browser run was a 404 for `/favicon.ico`. No JS errors —
+there is no JavaScript.
+
+## Still open
+
+Nothing here blocks running the app.
+
+| Item | Why it is still open |
+|---|---|
+| **Per-platform follower counts** | The real fix for D3 saturation, and for the three `rate_reproducible: false` rows. Needs a schema change plus re-sourcing, not a code change. See the D3 section above. |
+| **LinkedIn calibration** | `config.INSTRUMENTS["linkedin"]["bands"]` is `None`, so LinkedIn returns `NEEDS_CALIBRATION`. The 5-creator cohort in `data/creators.json` has no metrics yet — collect interaction rates for it, fit bands, then delete the uncalibrated branch. |
+| **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
+| **Fictional pipeline entries** | `data/pipeline_intel.json` carries two `status: example` briefs with fictional brands so the loop can be demonstrated. Delete them before this runs against a real book of business. |
+| **Scheduler under a real clock** | `--once` and the next-run arithmetic are tested; the blocking loop has not been left running across an actual scheduled fire. |
+| **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |
 
 ---
 
-## Constraints that must survive the rest of the build
+## Constraints that must survive any further work
 
-Read `CLAUDE.md` in full, but these three break the product if violated:
+Read `CLAUDE.md` in full, but these break the product if violated:
 
 1. **Never fabricate creator metrics — or judgement.** Missing metric → `NEEDS_REFRESH`.
    Missing human judgement → `NEEDS_REVIEW`. Uncalibrated instrument → `NEEDS_CALIBRATION`.
@@ -156,12 +199,19 @@ Read `CLAUDE.md` in full, but these three break the product if violated:
    and `check_weights_documented()` both guard this.
 3. **Campaign role comes from Category Readiness, not the total score.** Role and tier
    are independent dimensions. The D1/D2 rule it replaced mislabelled 7 of 18 creators.
+4. **A readiness judgement is evidence about one named category only.** Do not let it
+   transfer to another brief — `readiness_category` exists to stop exactly that.
+5. **Every evaluated creator stays on screen.** Filtering unscored rows out of the table
+   would hide the gaps the engine exists to report.
 
 ## Open questions for the product owner
 
-- The sample metrics are invented placeholders. Before this is shown to a real Creator
-  Partnership Manager, either wire the enrichment API or replace the CSV with sourced
-  numbers — otherwise the app's own top constraint is being violated by its demo data.
+- **Per-platform follower counts.** The single blocker on a real D3 refit, and on the
+  three `rate_reproducible: false` rows. Can the sheet carry a follower count per
+  platform rather than one blended number?
+- **Which categories the roster should cover.** Readiness is judged per category, so a
+  second live campaign in a different category needs its own pass over the pool. Worth
+  knowing which categories are coming before that judging work is scheduled.
 - Spec vs. brief disagree on role thresholds (3.67/3.6 vs 4.0/4.0). The brief won. If
   the spec is authoritative, `config.ROLE_THRESHOLD` is the single value to change.
 - The D1 30-vs-25 point discrepancy in the spec looks like a typo worth correcting at

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}{{ criteria.brand_name }} shortlist — Creator Campaign Scout{% endblock %}
+
+{% macro hidden_brief(brief) %}
+  {% for field in ["brand_name", "product_description", "category", "campaign_goal",
+                   "target_audience", "exclusions"] %}
+    <input type="hidden" name="{{ field }}" value="{{ brief[field] }}">
+  {% endfor %}
+  {% for platform in brief.platforms %}
+    <input type="hidden" name="platforms" value="{{ platform }}">
+  {% endfor %}
+  <input type="hidden" name="cpm" value="{{ brief.cpm }}">
+  <input type="hidden" name="follower_band" value="{{ brief.follower_band }}">
+  <input type="hidden" name="shortlist_size" value="{{ brief.shortlist_size }}">
+{% endmacro %}
+
+{% block content %}
+<section class="hero hero-row">
+  <div>
+    <h1>{{ criteria.brand_name }} shortlist</h1>
+    <p class="lede">
+      {{ counts.shortlisted }} shortlisted of {{ counts.evaluated }} evaluated ·
+      scored against <strong>{{ criteria.category }}</strong>
+    </p>
+  </div>
+  <div class="hero-actions">
+    <form method="post" action="{{ url_for('export_csv') }}">
+      {{ hidden_brief(brief) }}
+      <button type="submit" class="btn btn-primary">Export CSV</button>
+    </form>
+    <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
+  </div>
+</section>
+
+<section class="counts">
+  <div class="count count-keep"><b>{{ counts.shortlisted }}</b><span>Shortlisted</span></div>
+  <div class="count count-review"><b>{{ counts.needs_review }}</b><span>Needs review</span></div>
+  <div class="count count-refresh"><b>{{ counts.needs_refresh }}</b><span>Needs refresh</span></div>
+  <div class="count count-calibration"><b>{{ counts.needs_calibration }}</b><span>Needs calibration</span></div>
+  <div class="count count-drop"><b>{{ counts.dropped }}</b><span>Dropped</span></div>
+</section>
+
+<div class="cols">
+  <section class="card">
+    <h2>Locked criteria</h2>
+    <dl class="criteria">
+      <dt>Brand</dt><dd>{{ criteria.brand_name }}</dd>
+      <dt>Goal</dt><dd>{{ criteria.campaign_goal|capitalize }}</dd>
+      <dt>Category</dt><dd>{{ criteria.category }}</dd>
+      <dt>Audience</dt><dd>{{ criteria.target_audience }}</dd>
+      <dt>Platforms</dt><dd>{{ criteria.platforms_display|join(", ") }}</dd>
+      <dt>Follower band</dt><dd>{{ criteria.follower_band_display }}</dd>
+      <dt>CPM</dt><dd>${{ "%.0f"|format(criteria.cpm) }}</dd>
+      <dt>Deliverable</dt>
+      <dd>{{ criteria.videos_per_creator }} × {{ criteria.deliverable_formats|join(" / ")|replace("_", " ") }}</dd>
+      <dt>Exclusions</dt>
+      <dd>{{ criteria.exclusions|join(", ") if criteria.exclusions else "none" }}</dd>
+    </dl>
+
+    <h3>Dimension 3 instruments</h3>
+    <ul class="instruments">
+      {% for slug, instrument in criteria.instruments.items() %}
+      <li>
+        <strong>{{ slug|capitalize }}</strong> — {{ instrument.label }}
+        {% if instrument.calibrated %}
+          <span class="tag tag-quiet">{{ instrument.calibration }}</span>
+        {% else %}
+          <span class="tag tag-warn">uncalibrated → NEEDS_CALIBRATION</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="note">
+      One construct, different instruments. Only the normalised 1–5 is comparable
+      across platforms — never the raw rate.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Campaign composition</h2>
+    <table class="composition">
+      <thead>
+        <tr><th>Role</th><th>Count</th><th>Target</th><th>Reach</th><th>Budget</th></tr>
+      </thead>
+      <tbody>
+        {% for role, data in composition.by_role.items() %}
+        <tr>
+          <td><span class="chip chip-{{ data.colour }}">{{ role }}</span></td>
+          <td class="num">{{ data.count }}</td>
+          <td class="num {{ 'on-target' if data.on_target else 'off-target' }}">
+            {{ data.target }}{% if not data.on_target %} ⚠{% endif %}
+          </td>
+          <td class="num">{{ "{:,}".format(data.reach) }}</td>
+          <td class="num">${{ "{:,.0f}".format(data.budget) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <td class="num">{{ counts.shortlisted }}</td>
+          <td class="num">—</td>
+          <td class="num">{{ "{:,}".format(composition.total_reach) }}</td>
+          <td class="num">${{ "{:,.0f}".format(composition.total_budget) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="note">
+      {{ composition.videos }} videos at ${{ "%.0f"|format(composition.cpm) }} CPM.
+      Budget is modelled from views × {{ criteria.sponsor_decay }} sponsor decay —
+      never from follower count.
+    </p>
+    <p class="note note-flag">{{ composition.student_ai_gap_note }}</p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Every creator evaluated</h2>
+  <p class="note">
+    All {{ counts.evaluated }} rows are shown. A creator the engine refuses to score
+    stays visible with its reason — a row that disappears is indistinguishable from a
+    creator nobody sourced.
+  </p>
+
+  <div class="table-scroll">
+    <table class="creators">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Creator</th>
+          <th>Platforms</th>
+          <th class="num">Followers</th>
+          <th class="num">Rate</th>
+          <th class="num" title="Audience match">D1</th>
+          <th class="num" title="Content match">D2</th>
+          <th class="num" title="Audience resonance">D3</th>
+          <th class="num" title="Geo match">D4</th>
+          <th class="num" title="Commercial maturity">D5</th>
+          <th class="num">Score</th>
+          <th>Tier</th>
+          <th>Role</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for creator in result.table %}
+        <tr class="row-{{ creator.status|lower|replace('_', '-') }}">
+          <td class="num">{{ creator.rank or "—" }}</td>
+          <td>
+            <div class="creator-name">{{ creator.name }}</div>
+            {% set provenance = creator.sourced_from ~ (", " ~ creator.sourced_date if creator.sourced_date else "")
+                                if creator.sourced_from else "source: " ~ (creator.source or "manual") %}
+            <div class="creator-meta" title="{{ provenance }}">{{ provenance }}</div>
+            {% if creator.rate_reproducible is not none and not creator.rate_reproducible %}
+              <div class="flag flag-warn" title="The recorded rate cannot be recomputed from the recorded columns — the sheet used a single platform's followers against a blended follower count.">
+                rate not reproducible from recorded columns
+              </div>
+            {% endif %}
+            {% for flag in creator.flags or [] %}
+              <div class="flag flag-warn">{{ flag }}</div>
+            {% endfor %}
+          </td>
+          <td>{{ creator.platforms_display|join(" / ") or "—" }}</td>
+          <td class="num">{{ "{:,.0f}".format(creator.followers) if creator.followers else "—" }}</td>
+          <td class="num">{{ "%.1f"|format(creator.resonance_rate) ~ "%" if creator.resonance_rate else "—" }}</td>
+          <td class="num">{{ creator.audience_match if creator.audience_match is not none else "—" }}</td>
+          <td class="num">{{ creator.content_match if creator.content_match is not none else "—" }}</td>
+          <td class="num">{{ creator.engagement_score if creator.engagement_score is not none else "—" }}</td>
+          <td class="num">{{ creator.geo_score if creator.geo_score is not none else "—" }}</td>
+          <td class="num">{{ creator.commercial_maturity if creator.commercial_maturity is not none else "—" }}</td>
+          <td class="num strong">{{ "%.1f"|format(creator.score_100) if creator.score_100 is not none else "—" }}</td>
+          <td class="tier" title="{{ creator.tier }}">
+            {{ creator.tier.split("—")[0].strip() if creator.score_100 is not none else "—" }}
+          </td>
+          <td>
+            {% if creator.role %}
+              <span class="chip chip-{{ creator.role_colour }}">{{ creator.role }}</span>
+            {% else %}
+              <span class="chip chip-empty">unassigned</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="status status-{{ creator.status|lower|replace('_', '-') }}">
+              {{ creator.status }}
+            </span>
+            {% if creator.status_reason %}
+              <div class="reason">{{ creator.status_reason }}</div>
+            {% endif %}
+            {% if creator.evidence %}
+            <details class="evidence">
+              <summary>evidence</summary>
+              <ul>
+                {% for note in creator.evidence %}<li>{{ note }}</li>{% endfor %}
+              </ul>
+            </details>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Outreach angles</h2>
+  <table class="angles">
+    <thead><tr><th>#</th><th>Creator</th><th>Role</th><th>Angle</th></tr></thead>
+    <tbody>
+      {% for creator in result.shortlist %}
+      <tr>
+        <td class="num">{{ creator.rank }}</td>
+        <td>{{ creator.name }}</td>
+        <td><span class="chip chip-{{ creator.role_colour }}">{{ creator.role }}</span></td>
+        <td class="angle">{{ creator.outreach_angle }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

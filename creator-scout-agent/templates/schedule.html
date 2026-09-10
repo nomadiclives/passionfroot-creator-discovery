@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Schedule — Creator Campaign Scout{% endblock %}
+
+{% block content %}
+<section class="hero hero-row">
+  <div>
+    <h1>Discovery schedule</h1>
+    <p class="lede">
+      Pre-builds a soft roster for every campaign in the pipeline, so the shortlist
+      exists before the brief is signed.
+    </p>
+  </div>
+  <div class="hero-actions">
+    <form method="post" action="{{ url_for('schedule_run') }}">
+      <button type="submit" class="btn btn-primary">Run now</button>
+    </form>
+  </div>
+</section>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="cols">
+  <section class="card">
+    <h2>Cadence</h2>
+    <form method="post" action="{{ url_for('schedule_cadence') }}" class="cadence-form">
+      <div class="checks">
+        {% for cadence in cadences %}
+        <label class="check">
+          <input type="radio" name="cadence" value="{{ cadence }}"
+                 {% if state.cadence == cadence %}checked{% endif %}>
+          <span>{{ cadence|capitalize }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn">Save cadence</button>
+    </form>
+
+    <dl class="criteria">
+      <dt>Run day</dt><dd>{{ state.run_day|capitalize }}</dd>
+      <dt>Run time</dt><dd>{{ state.run_time }}</dd>
+      <dt>Last run</dt>
+      <dd>{{ state.last_run or "never" }}{% if state.last_status %} ({{ state.last_status }}){% endif %}</dd>
+      <dt>Next run</dt><dd>{{ state.next_run }}</dd>
+      <dt>Last report</dt>
+      <dd>{% if state.last_report %}<code>{{ state.last_report }}</code>{% else %}—{% endif %}</dd>
+    </dl>
+    <p class="note">
+      The loop runs the same engine the UI runs, against the same sourced data —
+      a scheduled roster and a hand-built one are the same artifact.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Pipeline</h2>
+    {% if state.pipeline %}
+    <table class="pipeline">
+      <thead><tr><th>Brand</th><th>Category</th><th>Received</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for campaign in state.pipeline %}
+        <tr>
+          <td>{{ campaign.brand_name }}</td>
+          <td>{{ campaign.category }}</td>
+          <td>{{ campaign.brief_received or "—" }}</td>
+          <td>
+            <span class="status {{ 'status-keep' if campaign.status == 'live' else 'status-needs-review' }}">
+              {{ campaign.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="note">
+      Entries marked <code>example</code> are illustrative briefs with fictional brands,
+      kept so the loop can be demonstrated. Delete them before running this against a
+      real book of business.
+    </p>
+    {% else %}
+    <p class="note">
+      Nothing in the pipeline. Add a campaign block to
+      <code>data/pipeline_intel.json</code>.
+    </p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>Last run</h2>
+  {% if state.last_summary %}
+  <table class="runs">
+    <thead>
+      <tr>
+        <th>Campaign</th><th>Category</th>
+        <th class="num">Shortlisted</th><th class="num">Review</th>
+        <th class="num">Refresh</th><th class="num">Calibration</th>
+        <th class="num">Dropped</th><th>Composition</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in state.last_summary %}
+      <tr>
+        <td>{{ run.brand_name }}</td>
+        <td>{{ run.category }}</td>
+        {% if run.status == "error" %}
+        <td colspan="6" class="reason">failed: {{ run.error }}</td>
+        {% else %}
+        <td class="num strong">{{ run.shortlisted }}</td>
+        <td class="num">{{ run.needs_review }}</td>
+        <td class="num">{{ run.needs_refresh }}</td>
+        <td class="num">{{ run.needs_calibration }}</td>
+        <td class="num">{{ run.dropped }}</td>
+        <td>
+          {% for role, count in (run.composition or {}).items() %}
+            <span class="chip chip-small">{{ role }} {{ count }}</span>
+          {% endfor %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    A campaign in a category the pool was not judged against shows a high
+    <strong>Review</strong> count and few shortlisted. That is the readiness guard
+    working: readiness is judged against a named category and does not transfer to
+    another one.
+  </p>
+  {% else %}
+  <p class="note">No run recorded yet. Press <strong>Run now</strong>.</p>
+  {% endif %}
+</section>
+{% endblock %}

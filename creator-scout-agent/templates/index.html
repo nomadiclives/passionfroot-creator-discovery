@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Campaign brief — Creator Campaign Scout{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Campaign brief</h1>
+  <p class="lede">
+    Describe the campaign. The engine locks these into a criteria set, scores every
+    sourced creator against the five-dimension model, and assigns a campaign role from
+    Category Readiness.
+  </p>
+</section>
+
+{% if spec.available and not spec.weights_match_spec %}
+<div class="alert alert-danger">
+  <strong>Weights have drifted from the spec.</strong>
+  <code>config.py</code> and <code>{{ spec.path }}</code> disagree on the dimension
+  points. Scores on the next screen are not trustworthy until they agree again.
+</div>
+{% endif %}
+
+<form class="card form" method="post" action="{{ url_for('shortlist') }}">
+  <div class="grid">
+    <label class="field">
+      <span class="label">Brand</span>
+      <input type="text" name="brand_name" value="{{ brief.brand_name }}" required>
+    </label>
+
+    <label class="field">
+      <span class="label">Campaign goal</span>
+      <select name="campaign_goal">
+        {% for goal in ["awareness", "consideration", "conversion"] %}
+        <option value="{{ goal }}" {% if brief.campaign_goal == goal %}selected{% endif %}>
+          {{ goal|capitalize }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <label class="field">
+    <span class="label">Product description</span>
+    <textarea name="product_description" rows="3">{{ brief.product_description }}</textarea>
+  </label>
+
+  <label class="field">
+    <span class="label">
+      Product category
+      <span class="hint">drives Category Readiness, and therefore campaign role</span>
+    </span>
+    <input type="text" name="category" value="{{ brief.category }}" required>
+    <span class="help">
+      Readiness judgements are recorded against a named category. Change this and
+      creators judged against a different category come back
+      <strong>NEEDS_REVIEW</strong> rather than carrying a role across — a readiness
+      call about one category is not evidence about another.
+    </span>
+  </label>
+
+  <label class="field">
+    <span class="label">Target audience</span>
+    <textarea name="target_audience" rows="2">{{ brief.target_audience }}</textarea>
+  </label>
+
+  <fieldset class="field">
+    <legend class="label">Platforms</legend>
+    <div class="checks">
+      {% for platform in platforms %}
+      <label class="check">
+        <input type="checkbox" name="platforms" value="{{ platform.slug }}"
+               {% if platform.slug in brief.platforms %}checked{% endif %}>
+        <span>{{ platform.label }}</span>
+        {% if platform.calibrated %}
+          <span class="tag tag-quiet">{{ platform.metric }}</span>
+        {% else %}
+          <span class="tag tag-warn" title="No fitted bands — Dimension 3 returns NEEDS_CALIBRATION">
+            uncalibrated
+          </span>
+        {% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    <span class="help">
+      Dimension 3 uses a different instrument per platform. An uncalibrated platform
+      returns <strong>NEEDS_CALIBRATION</strong> instead of a guessed band.
+    </span>
+  </fieldset>
+
+  <div class="grid grid-3">
+    <label class="field">
+      <span class="label">CPM ($)</span>
+      <input type="number" name="cpm" min="1" step="1" value="{{ brief.cpm|int }}">
+    </label>
+
+    <label class="field">
+      <span class="label">Follower band</span>
+      <select name="follower_band">
+        {% for band in follower_bands %}
+        <option value="{{ band }}" {% if brief.follower_band == band %}selected{% endif %}>
+          {{ band|capitalize }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="label">Shortlist size</span>
+      <input type="number" name="shortlist_size" min="{{ shortlist_min }}"
+             max="{{ shortlist_max }}" value="{{ brief.shortlist_size }}">
+    </label>
+  </div>
+
+  <label class="field">
+    <span class="label">
+      Exclusions
+      <span class="hint">comma separated — competitor sponsorships drop a creator</span>
+    </span>
+    <input type="text" name="exclusions" value="{{ brief.exclusions }}">
+  </label>
+
+  <div class="actions">
+    <button type="submit" class="btn btn-primary">Build shortlist</button>
+    <button type="submit" class="btn" formaction="{{ url_for('export_csv') }}">
+      Export CSV directly
+    </button>
+  </div>
+</form>
+
+<section class="card">
+  <h2>The model this scores against</h2>
+  <table class="weights">
+    <thead>
+      <tr><th>Dimension</th><th>Weight</th><th>Points</th></tr>
+    </thead>
+    <tbody>
+      {% for dimension, weight in weights.items() %}
+      <tr>
+        <td>{{ dimension.replace("_", " ")|capitalize }}</td>
+        <td>{{ "%.2f"|format(weight) }}</td>
+        <td>{{ dimension_points[dimension] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    Locked by <code>{{ spec.path }}</code> and guarded by the test suite. The form
+    cannot change them.
+  </p>
+
+  {% if spec.hard_rules %}
+  <h3>Hard rules from the spec</h3>
+  <ul class="rules">
+    {% for rule in spec.hard_rules[:5] %}
+    <li>{{ rule|inline_md }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

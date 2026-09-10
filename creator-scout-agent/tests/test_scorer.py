@@ -272,3 +272,64 @@ def test_csv_export_has_header_and_every_row():
     result = build()
     lines = [l for l in scorer.to_csv(result).splitlines() if l.strip()]
     assert len(lines) == len(result["table"]) + 1
+
+
+# ---------------------------------------------------------------------------
+# Readiness is category-relative
+#
+# Role comes from Category Readiness, and readiness is judged AGAINST A NAMED
+# CATEGORY. Reusing a judgement made about one category for a campaign in
+# another is inventing judgement — the same rule that forbids inventing
+# metrics. These guard the guard.
+# ---------------------------------------------------------------------------
+def test_readiness_does_not_transfer_to_a_different_category():
+    """The whole pool was judged against "AI app-building tools"."""
+    other = {**config.DEFAULT_BRIEF, "category": "student productivity hardware"}
+    result = build(other)
+
+    assert result["counts"]["shortlisted"] == 0, (
+        "readiness judged against one category must not silently produce roles "
+        "for a campaign in another"
+    )
+    roberto = by_name(result, "Roberto Nickson")
+    assert roberto["status"] == scorer.STATUS_REVIEW
+    assert roberto["role"] is None
+    assert "AI app-building tools" in roberto["status_reason"]
+    assert "student productivity hardware" in roberto["status_reason"]
+
+
+def test_readiness_transfers_when_the_category_matches():
+    """The guard must not fire on the campaign the pool was judged for."""
+    result = build()
+    assert result["counts"]["shortlisted"] == 17
+    assert by_name(result, "Roberto Nickson")["role"] == scorer.ROLE_CREDIBILITY
+
+
+def test_category_match_ignores_case_and_padding():
+    result = build({**config.DEFAULT_BRIEF, "category": "  AI App-Building Tools "})
+    assert result["counts"]["shortlisted"] == 17
+
+
+def test_untagged_readiness_still_scores():
+    """A row with no readiness_category predates the field; it is not punished.
+
+    Backwards compatibility is deliberate: the guard fires on a KNOWN
+    mismatch, never on absence of the tag.
+    """
+    rows = scorer.load_creators(config.CREATOR_DATA)
+    for row in rows:
+        row["readiness_category"] = ""
+    result = scorer.build_shortlist(
+        {**config.DEFAULT_BRIEF, "category": "anything at all"}, rows
+    )
+    assert result["counts"]["shortlisted"] == 17
+
+
+def test_every_readiness_judgement_in_the_data_records_its_category():
+    """No untagged judgement should slip back into the sourced data."""
+    for creator in scorer.load_creators(config.CREATOR_DATA):
+        if creator["readiness"]:
+            assert creator["readiness_category"], (
+                f"{creator['name']} has a readiness judgement with no category — "
+                "the judgement cannot be checked against a brief"
+            )

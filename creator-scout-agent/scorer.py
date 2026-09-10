@@ -5,7 +5,7 @@ Implements Steps 1, 4, 5 and 5a of creator-campaign-scout.md:
   Step 1   lock_criteria()      brief -> locked criteria set
   Step 4   load_creators()      CSV/JSON -> normalised creator profiles
   Step 5   score_creator()      five-dimension weighted model
-  Step 5a  assign_role()        campaign role from the D1/D2 relationship
+  Step 5a  assign_role()        campaign role from Category Readiness
   Step 6   build_shortlist()    ranked, tiered, role-assigned output
 
 HARD RULE — never fabricate creator metrics. A creator missing any REQUIRED_FIELD is
@@ -238,8 +238,11 @@ def normalise_creator(row: dict) -> dict:
         "notes": _text(row.get("notes")),
         "has_media_kit": _bool(row.get("has_media_kit")),
         "source": _text(row.get("source")).lower() or "manual",
-        # Category Readiness drives the campaign role (Step 5a).
+        # Category Readiness drives the campaign role (Step 5a). It is judged
+        # against a NAMED category, and the name travels with it — a readiness
+        # call about "AI app-building tools" says nothing about a tablet.
         "readiness": _text(row.get("readiness")).lower().strip(),
+        "readiness_category": _text(row.get("readiness_category")).strip(),
         # Non-scored publishing surfaces (newsletter, podcast) still matter to
         # the deliverable gate.
         "other_surfaces": _text(row.get("other_surfaces")),
@@ -639,6 +642,24 @@ def score_creator(creator: dict, criteria: dict) -> dict:
         return result
 
     readiness = _text(creator.get("readiness")).lower().strip()
+
+    # Readiness is category-relative. Reusing a judgement made against one
+    # category for another campaign is inventing judgement — the same rule that
+    # forbids inventing metrics. A row whose readiness was judged against a
+    # different category is NEEDS_REVIEW, not a guessed role.
+    judged_against = _text(creator.get("readiness_category")).strip()
+    brief_category = _text(criteria.get("category")).strip()
+    if readiness and judged_against and brief_category and (
+        judged_against.lower() != brief_category.lower()
+    ):
+        result.update(_unscored(
+            creator, criteria, STATUS_REVIEW,
+            f"readiness was judged against “{judged_against}”; this brief "
+            f"scores against “{brief_category}” — re-judge before use",
+            notes=d3_notes,
+        ))
+        return result
+
     role = assign_role(readiness)
     if role is None:
         # Readiness is a human judgement. Absent, the creator is not given a

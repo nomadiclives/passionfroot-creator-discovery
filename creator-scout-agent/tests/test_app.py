@@ -1,0 +1,218 @@
+"""Flask route tests.
+
+These cover the browser-facing half of the verification list in CLAUDE.md:
+the app imports and serves, Screen 1 carries every field, Screen 2 renders a
+scored table, the CSV downloads, and /schedule answers as both HTML and JSON.
+
+The UI's specific job is to make the engine's REFUSALS legible, so the sharpest
+tests here are the ones asserting that unscored creators are still on the page.
+"""
+
+import csv
+import io
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import app as flask_app
+import config
+import scorer
+
+
+@pytest.fixture()
+def client():
+    flask_app.app.config.update(TESTING=True)
+    return flask_app.app.test_client()
+
+
+BRIEF_FORM = {
+    "brand_name": "Craftly",
+    "product_description": config.DEFAULT_BRIEF["product_description"],
+    "category": "AI app-building tools",
+    "campaign_goal": "awareness",
+    "target_audience": config.DEFAULT_BRIEF["target_audience"],
+    "platforms": ["tiktok", "instagram", "youtube"],
+    "cpm": "50",
+    "follower_band": "all",
+    "shortlist_size": "18",
+    "exclusions": config.DEFAULT_BRIEF["exclusions"],
+}
+
+
+# ---------------------------------------------------------------------------
+# Screen 1
+# ---------------------------------------------------------------------------
+def test_index_renders_every_brief_field(client):
+    body = client.get("/").get_data(as_text=True)
+    assert client.get("/").status_code == 200
+    for field in (
+        'name="brand_name"',
+        'name="product_description"',
+        'name="category"',
+        'name="campaign_goal"',
+        'name="target_audience"',
+        'name="platforms"',
+        'name="cpm"',
+        'name="follower_band"',
+        'name="shortlist_size"',
+        'name="exclusions"',
+    ):
+        assert field in body, f"Screen 1 is missing {field}"
+
+
+def test_index_offers_every_platform_including_linkedin(client):
+    body = client.get("/").get_data(as_text=True)
+    for slug in config.PLATFORM_SLUGS:
+        assert f'value="{slug}"' in body
+    # LinkedIn has no fitted bands and the form must say so rather than
+    # presenting it as an equal option.
+    assert "uncalibrated" in body
+
+
+# ---------------------------------------------------------------------------
+# Screen 2
+# ---------------------------------------------------------------------------
+def test_shortlist_renders_a_scored_table(client):
+    response = client.post("/shortlist", data=BRIEF_FORM)
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Joshua La Rosa" in body
+    assert "98.0" in body
+    assert "Credibility" in body
+
+
+def test_every_evaluated_creator_appears_on_screen_two(client):
+    """A creator that vanishes is indistinguishable from one nobody sourced."""
+    result = scorer.build_shortlist(config.DEFAULT_BRIEF, config.CREATOR_DATA)
+    body = client.post("/shortlist", data=BRIEF_FORM).get_data(as_text=True)
+    for creator in result["table"]:
+        assert creator["name"] in body, f"{creator['name']} fell off the page"
+
+
+def test_all_five_statuses_render_with_their_reason(client):
+    body = client.post("/shortlist", data=BRIEF_FORM).get_data(as_text=True)
+    for status in (
+        scorer.STATUS_KEEP,
+        scorer.STATUS_DROP,
+        scorer.STATUS_REFRESH,
+        scorer.STATUS_REVIEW,
+    ):
+        assert status in body, f"{status} rows are not rendered"
+    # The reasons, not just the labels.
+    assert "cannot produce the deliverable" in body
+    assert "category readiness not judged" in body
+
+
+def test_unreproducible_rates_are_flagged_in_the_ui(client):
+    """Three rows carry rate_reproducible: false. The UI must not hide that."""
+    body = client.post("/shortlist", data=BRIEF_FORM).get_data(as_text=True)
+    assert "rate not reproducible" in body
+
+
+def test_screen_two_shows_provenance(client):
+    body = client.post("/shortlist", data=BRIEF_FORM).get_data(as_text=True)
+    assert "Creator Sheet for Craftly" in body
+    assert "2026-09-10" in body
+
+
+def test_changing_the_category_changes_the_roles_not_just_the_heading(client):
+    """The category field really drives scoring, and the screen shows it."""
+    form = {**BRIEF_FORM, "category": "student productivity hardware"}
+    body = client.post("/shortlist", data=form).get_data(as_text=True)
+    assert "student productivity hardware" in body
+    assert scorer.STATUS_REVIEW in body
+    assert "re-judge before use" in body
+
+
+def test_shortlist_survives_a_mostly_empty_form(client):
+    """A partly filled form falls back to the campaign slot rather than erroring."""
+    response = client.post("/shortlist", data={"brand_name": "Craftly"})
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# CSV export
+# ---------------------------------------------------------------------------
+def test_export_csv_downloads_a_valid_file(client):
+    response = client.post("/export.csv", data=BRIEF_FORM)
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert ".csv" in response.headers["Content-Disposition"]
+
+    rows = list(csv.reader(io.StringIO(response.get_data(as_text=True))))
+    assert rows[0][0] == "Rank"
+    assert len(rows) > 1
+
+
+def test_export_matches_what_the_screen_showed(client):
+    """Export re-runs the same brief, so it cannot drift from Screen 2."""
+    result = scorer.build_shortlist(config.DEFAULT_BRIEF, config.CREATOR_DATA)
+    rows = list(csv.reader(io.StringIO(
+        client.post("/export.csv", data=BRIEF_FORM).get_data(as_text=True)
+    )))
+    assert len(rows) - 1 == len(result["table"])
+
+
+# ---------------------------------------------------------------------------
+# Schedule + JSON surfaces
+# ---------------------------------------------------------------------------
+def test_schedule_console_renders_html(client):
+    response = client.get("/schedule")
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert "Discovery schedule" in response.get_data(as_text=True)
+
+
+def test_schedule_returns_json_on_request(client):
+    """CLAUDE.md's verification item 6 — /schedule answers JSON too."""
+    for response in (
+        client.get("/schedule?format=json"),
+        client.get("/schedule", headers={"Accept": "application/json"}),
+        client.get("/api/schedule"),
+    ):
+        assert response.status_code == 200
+        assert response.mimetype == "application/json"
+        payload = response.get_json()
+        assert payload["cadence"] in config.CADENCES
+        assert "next_run" in payload
+
+
+def test_cadence_can_be_set_and_a_bad_one_is_refused(client):
+    assert client.post(
+        "/schedule/cadence", data={"cadence": "daily"},
+        headers={"Accept": "application/json"},
+    ).get_json()["cadence"] == "daily"
+
+    bad = client.post(
+        "/schedule/cadence", data={"cadence": "hourly"},
+        headers={"Accept": "application/json"},
+    )
+    assert bad.status_code == 400
+
+    # Leave the stored cadence as the documented default.
+    client.post("/schedule/cadence", data={"cadence": config.DEFAULT_CADENCE},
+                headers={"Accept": "application/json"})
+
+
+def test_api_shortlist_is_json(client):
+    payload = client.get("/api/shortlist").get_json()
+    assert payload["counts"]["evaluated"] > 0
+    assert payload["table"][0]["name"]
+
+
+def test_healthz_reports_spec_agreement(client):
+    payload = client.get("/healthz").get_json()
+    assert payload["ok"] is True
+    assert payload["spec_loaded"] is True
+    assert payload["weights_match_spec"] is True
+
+
+def test_spec_markdown_is_rendered_not_escaped_into_the_page(client):
+    """The spec is markdown on disk; the UI quotes it, so it must render."""
+    body = client.get("/").get_data(as_text=True)
+    assert "**Never fabricate" not in body
+    assert "<strong>Never fabricate creator metrics</strong>" in body
