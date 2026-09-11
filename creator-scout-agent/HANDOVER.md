@@ -1,9 +1,15 @@
 # Handover — Creator Campaign Scout Agent
 
-**Status: handed over 2026-09-10.** Feature-complete, merged to `main`, and **deployed
+**Status: handed over 2026-09-10; extended 2026-09-11.** Feature-complete and **deployed
 on Render** from `render.yaml` — engine, web app, scheduler and enrichment stub all built
-and exercised in a real browser.
-**Test suite:** `python -m pytest tests/` — 237 passing.
+and exercised in a real browser. See *Session 2026-09-11* below for screening, the
+interface pass, and the competitor rule reversal.
+**Test suite:** `python -m pytest tests/` — 242 passing.
+
+**Deployment note:** Render tracks the repository's **default branch**, which is
+`claude/sweet-faraday-hpygoj`, not `main`. `main` is well behind and is not what is
+served. `render.yaml` pins no branch, so changing the default branch changes what is
+live.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
 file is a blocker on running the app. What remains is listed under **Still open**; the
@@ -486,12 +492,100 @@ uncalibrated, and the spec-agreement line reading "agree". No test covers this p
 
 ---
 
+## Session 2026-09-11 — screening, the interface, and one rule reversed
+
+Six changes, in the order they happened. The through-line is that most of them came
+from someone reading a screen and asking why it said what it said.
+
+**Step 3 screening is built** (`screening.py`, `/screen`, `/api/screen`). The spec asks
+for PASS / FLAG / FAIL per check; this adds `UNKNOWN` for a check nothing was ever
+sourced to answer, because a triage that reports PASS on a creator nobody looked at
+turns an absence of evidence into a clean bill of health — rule 1 applied to judgement
+rather than to metrics. An unanswered blocking check holds the row at
+`NEEDS_SCREENING` and outranks `FLAG`. Read-only: no form, no status written, and the
+Step 3 gates are called from `scorer.py` rather than reimplemented, with a test pinning
+that screening FAILs exactly the creators the scorer drops.
+
+**Screening's real output is the backlog, not the verdicts.** `screen_all()` reports
+which checks are unanswered across the pool, blocking first. Today that says brand
+safety is unreviewed on all 26 rows and `engagement_rate` is sourced on none of them.
+Both are sourcing tasks, not code tasks.
+
+**`/screen` is out of the top nav**, at the product owner's request, because on a pool
+nobody has screened it is a column of grey `NEEDS_SCREENING` rows — correct, and it
+reads as a broken page to a visitor. The route, the JSON surface and the page all still
+work and are reachable directly.
+
+**Discover was rebuilt and every screen got guidance.** Discover asked you to paste
+results before showing you the searches to paste from, opened with a quote from the spec
+and a raw status token, reported an unset API key as if something were broken, and put
+98 search tiles on the page at once. It is now a numbered sequence with collapsed
+search groups and a work-in-progress banner. The shortlist gained a plain-language
+legend for its five statuses, which is the page most likely to be read by someone who
+did not build this.
+
+**Competitor sponsorship now flags instead of dropping** — see `CLAUDE.md` rule 5a for
+the full reasoning. The short version is that the code was stricter than the spec it
+implements, and the free-text match meant soojintech's note, *"confirmed Cursor as a
+brand partner - already comfortable sponsoring AI coding tools"*, written by the sourcer
+as a reason to want her, silently removed a 91-point creator from any brief that
+excluded Cursor.
+
+**The rubric is now on `/how-it-works`.** The page explained what each dimension weighs
+but never what earns the points, which is the question anyone evaluating a shortlist
+actually asks. The ladders were already parsed and in memory; only the hard rules were
+ever rendered. Tier cut-offs and per-platform D3 bands come from live config, the full
+ladders print verbatim from the spec file.
+
+### What publishing the rubric immediately exposed
+
+Putting the code's bands beside the spec's ladders made a distinction visible that had
+only ever lived in `config.py` comments, and the first published wording got it wrong by
+flattening it. Corrected, and worth carrying forward because it changes what the D3 work
+actually is:
+
+| Instrument | Code bands | Spec ladder | On this pool |
+|---|---|---|---|
+| TikTok / Instagram | 8 / 5 / 3 / 1 | 8 / 5 / 3.5 | **11 of 11 score 5/5** — inert |
+| YouTube | 35 / 20 / 10 / 5 | 4 / 2 / 1.5 | 3 of 8 at 5/5, spread over 2–5 |
+
+YouTube's bands were refitted for view-rate data and they discriminate. TikTok and
+Instagram carry the spec's engagement-rate numbers applied to a view rate, so every
+creator clears the top band and a quarter of the total weight does no ranking work on
+those platforms. **The fix is not hypothetical — it has been done once already, on
+YouTube.** Repeating it still needs per-platform follower counts the data does not
+carry, which is why it has not happened.
+
+### The pool is a snapshot of a sheet that moves
+
+`data/creators.json` was exported from the owner's Google Sheet on 2026-09-10 and had
+been treated as the sheet ever since. It is not. **Dylan OTT** was added to the sheet
+afterwards and was therefore missing from every shortlist without anything looking
+wrong. He is now in, sourced field by field, ranking 3rd at 92.5.
+
+He is also **the second row whose sheet total contradicts the sheet's own ladder** — a
+141.25% view rate scores 5/5 under a ladder topping out at 8%, but the sheet recorded 4.
+Roberto Nickson is the first. Two of twenty-two, which matters to anyone refitting D3.
+
+Read back from the sheet today, **all 21 visible rows reconcile exactly** against the 21
+sourced rows in the app, with nothing missing in either direction. One limit worth
+recording: the Drive read truncates part-way through the final visible row (Chams
+Eldin), twice, so it cannot prove no rows exist below him. Chams Eldin was also the last
+row at the original export, and Dylan was added at the *top*, which suggests additions
+go there — but that is inference, not proof. **There is no sync between the sheet and
+this repo; re-check before any campaign that depends on the pool being complete.**
+
+---
+
 ## Still open
 
 Nothing here blocks running the app, and the app is deployed.
 
 | Item | Why it is still open |
 |---|---|
+| **No sync between the sheet and the pool** | `data/creators.json` is a point-in-time export. Dylan OTT was missing for a day because he was added to the sheet afterwards, and nothing in the app could have indicated that. Re-reconcile before any campaign that depends on the pool being complete. The Drive read also truncates on the last row, so a tail check cannot be fully automated today. |
+| **D3: two instruments inert, one fitted** | TikTok and Instagram score 11 of 11 creators at 5/5, so a quarter of the weight does no ranking work there. YouTube was refitted for view-rate data and discriminates properly, which makes this a known method rather than an open research question — it still needs per-platform follower counts. |
+| **Two rows contradict the sheet's own D3 ladder** | Roberto Nickson and Dylan OTT both record a 4 where the stated ladder gives 5/5. The engine applies the ladder. Worth resolving at source before anyone refits the bands off these rows. |
 | **Per-platform follower counts** | The real fix for D3 saturation, and for the three `rate_reproducible: false` rows. Needs a schema change plus re-sourcing, not a code change. See the D3 section above. |
 | **LinkedIn calibration** | `config.INSTRUMENTS["linkedin"]["bands"]` is `None`, so LinkedIn returns `NEEDS_CALIBRATION`. The 5-creator cohort in `data/creators.json` has no metrics yet — collect interaction rates for it, fit bands, then delete the uncalibrated branch. **Now has a concrete route:** this is a one-off collection task, not an integration, and Favikon is the strongest LinkedIn creator-intelligence tool — an afternoon in its UI on a published-price seat would unblock it without building an adapter. See [`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md) §2 Tier 3. |
 | **Live enrichment** | `enricher.py` is wired and tested against a patched transport, but has never made a real call. Set `ENRICHMENT_ENABLED`, `API_PROVIDER` and `API_KEY`, then check the provider's real payload shape against `FIELD_MAP`. Never commit a key. |
