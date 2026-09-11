@@ -298,7 +298,7 @@
   </p>
   <table class="creators rubric-bands">
     <thead>
-      <tr><th>Platform</th><th>Measured as</th><th>5/5</th><th>4/5</th><th>3/5</th><th>2/5</th></tr>
+      <tr><th>Platform</th><th>Measured as</th><th>5/5</th><th>4/5</th><th>3/5</th><th>2/5</th><th>Fitted?</th></tr>
     </thead>
     <tbody>
       {% for slug, inst in instruments.items() %}
@@ -309,25 +309,41 @@
           {% for floor, score in inst.bands %}<td class="num">&ge;{{ floor }}%</td>{% endfor %}
         {% else %}
           <td colspan="4" class="creator-meta">
-            not calibrated — returns <code>NEEDS_CALIBRATION</code> rather than a
-            guessed band
+            no bands fitted — returns <code>NEEDS_CALIBRATION</code> rather than a
+            guessed boundary
           </td>
         {% endif %}
+        <td class="creator-meta">
+          {% if 'saturating' in inst.calibration %}
+            <span class="tag tag-warn">saturates</span>
+          {% elif inst.calibration == 'uncalibrated' %}
+            <span class="tag tag-quiet">not calibrated</span>
+          {% else %}
+            fitted to real data
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
   <p class="note note-flag">
-    <strong>One known mismatch, stated rather than left to be found.</strong>
-    The spec's Dimension 3 ladder is written for an <em>engagement rate</em> — likes and
-    comments over reach. The data this pool carries is a <em>view rate</em>, views over
-    followers, and the code applies the thresholds above to that. They are different
-    measures on different denominators, so the boundaries are more generous in practice
-    than the spec intends and the band saturates: most creators here score 5/5 on it,
-    and a quarter of the total weight does less work than it should. Fixing it needs
-    per-platform follower counts, not a new number in the config, so the ladder is left
-    as the product owner set it and the limitation is published instead.
+    <strong>Two of these three ladders do not yet work, and it is worth knowing which.</strong>
+    The spec writes Dimension 3 for an <em>engagement rate</em> — likes and comments over
+    reach. This pool carries a <em>view rate</em>, views over followers, which runs an
+    order of magnitude higher.
+    <br><br>
+    <strong>YouTube was refitted for that.</strong> Its bands above (35/20/10/5) look
+    nothing like the spec's engagement ladder (4/2/1.5) because they were derived from
+    real view-rate data, and they discriminate: the eight YouTube creators here spread
+    across 2, 3, 4 and 5 out of 5.
+    <br><br>
+    <strong>TikTok and Instagram were not.</strong> Their 8/5/3 is essentially the spec's
+    engagement ladder applied to a view rate, so every creator clears the top band —
+    <strong>all eleven score 5/5</strong> and the dimension does no ranking work at all
+    on those platforms. The fix is the one already proven on YouTube, but it needs
+    per-platform follower counts this data does not carry, so the ladder stays as the
+    product owner set it and the gap is published rather than papered over.
   </p>
 
   {% if rubric %}
