@@ -178,6 +178,9 @@ def how_it_works():
         rubric=agent_spec.scoring_rubric(),
         dimension_points=config.DIMENSION_POINTS,
         score_tiers=config.SCORE_TIERS,
+        # Jinja's |capitalize turns the slugs into "Tiktok" and "Youtube".
+        # These are brand names on a page written to be trusted.
+        platform_labels={s: scorer._pretty_platform(s) for s in config.INSTRUMENTS},
         instruments=config.INSTRUMENTS,
         readiness_roles=config.READINESS_ROLES,
         role_colours=config.ROLE_COLOURS,

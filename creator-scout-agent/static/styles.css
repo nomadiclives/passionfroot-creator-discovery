@@ -329,8 +329,22 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
   white-space: pre;
   tab-size: 2;
 }
-.rubric-tiers, .rubric-bands { min-width: 0; margin-bottom: 6px; }
+/* These are small comparison grids, not the wide shortlist table. Left at
+   width:100% the four band columns stretch across the page and each figure
+   drifts to the far right of its own column, so the numbers stop lining up
+   under their headings and the grid stops being readable as a grid. Sizing to
+   content keeps the columns adjacent and scannable down as well as across. */
+.rubric-tiers, .rubric-bands {
+  width: auto;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+.rubric-tiers th, .rubric-tiers td,
+.rubric-bands th, .rubric-bands td { padding: 9px 14px; }
+.rubric-tiers th:first-child, .rubric-tiers td:first-child,
+.rubric-bands th:first-child, .rubric-bands td:first-child { padding-left: 0; }
 .rubric-bands td.num { font-variant-numeric: tabular-nums; }
+.rubric-bands td.band-none { color: var(--ink-faint); }
 #rubric h3 { margin-top: 22px; font-size: 15px; }
 #rubric h3:first-of-type { margin-top: 10px; }
 

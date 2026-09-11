@@ -199,11 +199,11 @@
       role, with the brand name inserted. Every creator in a role gets the same line.
       This is a placeholder, not copy.</li>
     <li><strong>The resonance ladder saturates.</strong>
-      {% for slug, inst in instruments.items() %}{% if inst.calibration and 'saturating' in inst.calibration %}{{ slug|capitalize }}{{ ", " if not loop.last }}{% endif %}{% endfor %}
+      {% for slug, inst in instruments.items() %}{% if inst.calibration and 'saturating' in inst.calibration %}{{ platform_labels.get(slug, slug) }}{{ ", " if not loop.last }}{% endif %}{% endfor %}
       use a rate ladder fed view-rate data, so most creators cluster at the top. The
       real fix needs per-platform follower counts, not new bands.</li>
     <li><strong>Not every platform is calibrated.</strong>
-      {% for slug, inst in instruments.items() %}{% if not inst.bands %}{{ slug|capitalize }} has no fitted bands and returns NEEDS_CALIBRATION.{% endif %}{% endfor %}</li>
+      {% for slug, inst in instruments.items() %}{% if not inst.bands %}{{ platform_labels.get(slug, slug) }} has no fitted bands and returns NEEDS_CALIBRATION.{% endif %}{% endfor %}</li>
     <li><strong>No authentication.</strong> Anyone with the link sees the full shortlist,
       including commercial notes on named creators.</li>
     <li><strong>Nothing it writes survives.</strong> Uploaded lists expire after
@@ -298,20 +298,22 @@
   </p>
   <table class="creators rubric-bands">
     <thead>
-      <tr><th>Platform</th><th>Measured as</th><th>5/5</th><th>4/5</th><th>3/5</th><th>2/5</th><th>Fitted?</th></tr>
+      <tr>
+        <th>Platform</th><th>Measured as</th>
+        <th class="num">5/5</th><th class="num">4/5</th>
+        <th class="num">3/5</th><th class="num">2/5</th>
+        <th>Fitted?</th>
+      </tr>
     </thead>
     <tbody>
       {% for slug, inst in instruments.items() %}
       <tr>
-        <td class="creator-name">{{ slug|capitalize }}</td>
+        <td class="creator-name">{{ platform_labels.get(slug, slug) }}</td>
         <td class="creator-meta">{{ inst.label }}</td>
         {% if inst.bands %}
           {% for floor, score in inst.bands %}<td class="num">&ge;{{ floor }}%</td>{% endfor %}
         {% else %}
-          <td colspan="4" class="creator-meta">
-            no bands fitted — returns <code>NEEDS_CALIBRATION</code> rather than a
-            guessed boundary
-          </td>
+          {% for _ in range(4) %}<td class="num band-none">&mdash;</td>{% endfor %}
         {% endif %}
         <td class="creator-meta">
           {% if 'saturating' in inst.calibration %}
@@ -326,6 +328,11 @@
       {% endfor %}
     </tbody>
   </table>
+  <p class="note">
+    A dash means no bands have been fitted for that instrument, so Dimension 3 returns
+    <code>NEEDS_CALIBRATION</code> for those creators rather than inventing a boundary to
+    score them against.
+  </p>
 
   <p class="note note-flag">
     <strong>Two of these three ladders do not yet work, and it is worth knowing which.</strong>
