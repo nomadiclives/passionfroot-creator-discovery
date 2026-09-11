@@ -3,7 +3,7 @@
 **Status: handed over 2026-09-10.** Feature-complete, merged to `main`, and **deployed
 on Render** from `render.yaml` — engine, web app, scheduler and enrichment stub all built
 and exercised in a real browser.
-**Test suite:** `python -m pytest tests/` — 201 passing.
+**Test suite:** `python -m pytest tests/` — 237 passing.
 
 The build was paused deliberately partway and has since been finished. Nothing in this
 file is a blocker on running the app. What remains is listed under **Still open**; the
@@ -38,7 +38,9 @@ it is the single most likely thing to be mistaken for a bug.
 | Deployment | `../render.yaml` | ✅ Render blueprint; gunicorn, `/healthz` check, debug off |
 | Upload pool | `creator_pool.py` | ✅ parse, park, resolve, judge write-back; **tested** |
 | Judging screen | `templates/judge.html` | ✅ four sub-scores + readiness; metrics never offered |
-| Tests | `tests/` | ✅ 160 passing |
+| **Step 3 screening** | `screening.py` | ✅ PASS/FLAG/FAIL **plus `UNKNOWN`**; read-only; shares the Step 3 gates with `scorer.py` rather than reimplementing them |
+| Screening screen | `templates/screen.html` | ✅ triage matrix + sourcing backlog; verified in a real browser 2026-09-11 |
+| Tests | `tests/` | ✅ 237 passing |
 
 ### The data is real now
 
@@ -493,7 +495,7 @@ Nothing here blocks running the app, and the app is deployed.
 | **Uploads are ephemeral** | Parked under `data/uploads/` with a 6-hour sweep, and the Render filesystem resets on deploy. An export attempted after expiry returns a clear error, but the pool is gone. |
 | **YouTube adapter is unverified** | Built and tested against a patched transport; never made a real call. Needs a key. See roadblock 1 above. |
 | **The manual-metric fork** | Paste-back produces handles with no way to attach hand-sourced metrics. Needs a product decision — see roadblock 2 above. |
-| **Screening (Step 3) is not built** | `discovery.py` produces candidates; the authenticity and brand-safety triage in Step 3 of the spec is still entirely manual. The comment-quality gate exists in the scorer but nothing feeds it automatically. |
+| **Screening backlog: brand safety and `engagement_rate`** | Step 3 triage is now built (`screening.py`, `/screen`) — but it reports what it cannot answer rather than papering over it, and two gaps hold the whole bundled pool. **Brand safety** is unrecorded on all 25 rows and is permanently human (`DISCOVERY_PLAN.md` §5); an afternoon of reading and a `brand_safety` value per row clears it. **`engagement_rate`** is populated on none of them, so the spec's suspect-ratio check is `UNKNOWN` pool-wide — and `resonance_rate` is deliberately not substituted, being a view rate on a different denominator. Neither is a code task. |
 | **Authentication** | There is none. Anyone with the deployed URL sees the full shortlist, including the commercial notes on named creators. Fine for a demo, not for real use. |
 | **End-to-end check of the live deploy** | The build and the gunicorn command are verified locally; the deployed URL itself has not been walked through screen by screen. |
 | **Spec role thresholds** | The spec cuts roles at 3.67/3.6, the brief at 4.0. Moot for role assignment now that readiness drives it (`config.ROLE_THRESHOLD` is unused), but the spec still says something the code does not do. Worth correcting at the source. |

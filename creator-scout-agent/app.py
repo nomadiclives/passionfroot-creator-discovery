@@ -34,6 +34,7 @@ import discovery
 import config
 import scheduler
 import scorer
+import screening
 from flask import (
     Flask,
     Response,
@@ -356,6 +357,96 @@ def discover_collect():
         "token": new_token,
     }
     return _render_shortlist(brief, result, {creator_pool.TOKEN_FIELD: [new_token]})
+
+
+# ---------------------------------------------------------------------------
+# The screening screen — Step 3
+# ---------------------------------------------------------------------------
+# Between finding a creator and judging one sits the question "is there any
+# reason not to pitch them at all?". The spec calls it Red Flag Triage.
+#
+# This screen is READ-ONLY and deliberately so. It does not fork the pool the
+# way judging does, does not write a status, and cannot be used to clear a
+# check — clearing one means sourcing the evidence and putting it on the row.
+# What it produces is a verdict per creator and, more usefully, the list of
+# checks nobody has answered yet, which is the sourcing backlog in priority
+# order.
+VERDICT_CLASSES = {
+    screening.PASS: "status-keep",
+    screening.FLAG: "status-needs-refresh",
+    screening.FAIL: "status-drop",
+    screening.UNKNOWN: "status-needs-calibration",
+    screening.NEEDS_SCREENING: "status-needs-review",
+}
+
+
+def _pool_for_screening(token: str) -> tuple[list[dict], str, str]:
+    """Load a pool without forking it. Screening writes nothing."""
+    if not token or token == creator_pool.BUNDLED:
+        rows = scorer.load_creators(config.CREATOR_DATA)
+        return rows, os.path.basename(config.CREATOR_DATA), creator_pool.BUNDLED
+    rows, filename = creator_pool.load(token)
+    return rows, filename, token
+
+
+def _screen_context(brief: dict, rows: list[dict], filename: str, token: str) -> dict:
+    criteria = scorer.lock_criteria(brief)
+    result = screening.screen_all(rows, criteria)
+    return dict(
+        brief=brief,
+        criteria=criteria,
+        result=result,
+        pool={"filename": filename, "token": token, "count": len(rows)},
+        verdict_classes=VERDICT_CLASSES,
+        form_values=_carry_brief(brief),
+        # The verdict constants, so the template names them rather than
+        # hard-coding strings that could drift from screening.py.
+        PASS=screening.PASS,
+        FLAG=screening.FLAG,
+        FAIL=screening.FAIL,
+        UNKNOWN=screening.UNKNOWN,
+        NEEDS_SCREENING=screening.NEEDS_SCREENING,
+    )
+
+
+@app.route("/screen", methods=["GET", "POST"])
+def screen():
+    source = request.form if request.method == "POST" else request.args
+    brief = brief_from_form(source)
+    token = (source.get(creator_pool.TOKEN_FIELD) or "").strip()
+    try:
+        rows, filename, token = _pool_for_screening(token)
+    except creator_pool.PoolError as exc:
+        return (
+            render_template(
+                "index.html", brief=brief, upload_error=str(exc), **_index_context()
+            ),
+            400,
+        )
+    return render_template("screen.html", **_screen_context(brief, rows, filename, token))
+
+
+@app.get("/api/screen")
+def api_screen():
+    """The same triage as JSON, for anything that wants to read the backlog."""
+    brief = brief_from_form(request.args)
+    token = (request.args.get(creator_pool.TOKEN_FIELD) or "").strip()
+    try:
+        rows, filename, token = _pool_for_screening(token)
+    except creator_pool.PoolError as exc:
+        return jsonify({"error": str(exc)}), 400
+    result = screening.screen_all(rows, scorer.lock_criteria(brief))
+    return jsonify(
+        {
+            "pool": {"filename": filename, "token": token, "count": len(rows)},
+            "category": brief.get("category", ""),
+            "counts": result["counts"],
+            "total": result["total"],
+            "unknown_by_check": result["unknown_by_check"],
+            "rows": result["rows"],
+            "screened_date": result["screened_date"],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

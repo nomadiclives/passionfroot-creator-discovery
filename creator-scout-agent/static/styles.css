@@ -312,6 +312,20 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 }
 .flag-warn { background: var(--amber-soft); color: var(--amber); }
 
+/* ---------- screening matrix (Step 3 triage) ---------- */
+/* Nine columns of verdicts, so it is wider than the shortlist table and scrolls
+   horizontally inside .table-scroll rather than crushing the reasons. */
+.screen-matrix { min-width: 1240px; }
+.screen-matrix td { vertical-align: top; }
+.screen-matrix .status { cursor: help; }
+.screen-matrix .reason { margin-top: 5px; }
+.screen-matrix .evidence ul ul { margin-top: 4px; }
+/* The reasons row spans the whole table, so it reads as prose rather than as a
+   thin ribbon down the creator column. */
+.screen-detail td { border-top: none; padding-top: 0; }
+.screen-detail .evidence ul { max-width: 96ch; }
+.screen-detail .evidence li { margin-bottom: 3px; }
+
 /* ---------- evidence ---------- */
 .evidence { margin-top: 5px; }
 .evidence summary {

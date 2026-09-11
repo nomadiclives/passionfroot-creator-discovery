@@ -243,6 +243,12 @@ def normalise_creator(row: dict) -> dict:
         # call about "AI app-building tools" says nothing about a tablet.
         "readiness": _text(row.get("readiness")).lower().strip(),
         "readiness_category": _text(row.get("readiness_category")).strip(),
+        # Step 3 screening judgements. Recorded, never derived: no source in
+        # this system can read a creator's last 60 days for controversy, or see
+        # a follower time series. Absent, screening.py reports UNKNOWN rather
+        # than passing the check — see its module docstring.
+        "brand_safety": _text(row.get("brand_safety")).lower().strip(),
+        "growth_pattern": _text(row.get("growth_pattern")).lower().strip(),
         # Non-scored publishing surfaces (newsletter, podcast) still matter to
         # the deliverable gate.
         "other_surfaces": _text(row.get("other_surfaces")),
@@ -436,9 +442,9 @@ def score_resonance(creator: dict, platform: str) -> tuple[float, list[str], str
     # Authenticity is a gate, and it is separate from the rate. A high rate on
     # inauthentic comments is worse than a low rate on real ones.
     quality = creator.get("comment_quality")
-    if quality in {"inauthentic", "suspected", "bot"}:
+    if quality in config.COMMENT_QUALITY_INAUTHENTIC:
         return 0.0, notes + ["comments suspected inauthentic"], STATUS_DROP
-    if quality in {"generic", "emoji"}:
+    if quality in config.COMMENT_QUALITY_GENERIC:
         score = max(score - config.GENERIC_COMMENT_PENALTY, 1.0)
         notes.append(f"generic comments (-{config.GENERIC_COMMENT_PENALTY})")
 
@@ -724,6 +730,33 @@ def score_creator(creator: dict, criteria: dict) -> dict:
     return result
 
 
+def competitor_sponsor_text(creator: dict) -> str:
+    """The text a competitor-sponsorship check reads, lowercased.
+
+    Sponsors are recorded free-text, sometimes in `current_sponsors` and
+    sometimes only mentioned in `notes`, so both are searched. Empty means
+    nothing was ever sourced about this creator's sponsors — which is NOT the
+    same as "no competitor sponsors", and screening.py reports the difference.
+    """
+    return " ".join(
+        [creator.get("current_sponsors", "") or "", creator.get("notes", "") or ""]
+    ).lower()
+
+
+def competitor_hit(creator: dict, exclusions: Iterable[str]) -> str:
+    """Step 3 gate — the first excluded competitor named in the creator's text.
+
+    Returns the matching term, or "" for no match. Shared with screening.py so
+    the triage screen and the scorer's Drop reason can never disagree.
+    """
+    haystack = competitor_sponsor_text(creator)
+    for term in exclusions or ():
+        term = str(term).lower().strip()
+        if term and term in haystack:
+            return term
+    return ""
+
+
 def can_deliver(creator: dict, criteria: dict) -> tuple[bool, str]:
     """Step 3 gate — can this creator physically produce the deliverable?
 
@@ -759,13 +792,9 @@ def _status_for(creator, criteria, eligible, score_100, engagement_notes) -> tup
     if not deliverable_ok:
         return STATUS_DROP, deliverable_reason
 
-    exclusions = [e.lower() for e in criteria.get("exclusions", [])]
-    haystack = " ".join(
-        [creator.get("current_sponsors", ""), creator.get("notes", "")]
-    ).lower()
-    for term in exclusions:
-        if term and term in haystack:
-            return STATUS_DROP, f"excluded: competitor sponsorship ({term})"
+    hit = competitor_hit(creator, criteria.get("exclusions", []))
+    if hit:
+        return STATUS_DROP, f"excluded: competitor sponsorship ({hit})"
 
     if not any(p in criteria["platforms"] for p in creator.get("platforms", [])):
         return STATUS_DROP, "not active on a briefed platform"

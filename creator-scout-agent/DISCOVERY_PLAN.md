@@ -1,12 +1,20 @@
 # Discovery — scoping plan
 
-**Status: Phases 0-2 built, 3-4 not started.** Written 2026-09-10; phases 0-2 built the
-same night. See `HANDOVER.md` for what was verified and the two roadblocks hit —
-chiefly that the YouTube adapter has never made a real call.
+**Status: Phases 0-2 built, plus Step 3 screening. Phases 3-4 not started.**
+Written 2026-09-10; phases 0-2 built the same night, screening built 2026-09-11. See
+`HANDOVER.md` for what was verified and the two roadblocks hit — chiefly that the
+YouTube adapter has never made a real call.
 
 The app scores creators you already have. It cannot find them. Steps 2 and 3 of
 `agents/creator-campaign-scout.md` — the discovery playbook and screening — are the
 missing first half. This document scopes them.
+
+**Screening (Step 3) is now built** — `screening.py` and `/screen`, no keys required.
+It was taken ahead of Phase 3 deliberately: phases 3 and 4 both need credentials this
+environment does not have, and building a second adapter that has never made a real call
+would have compounded roadblock 1 rather than clearing it. Screening needs nothing
+external, is fully verifiable offline, and is the other half of the "missing first half"
+this document names above. See §4a.
 
 Read `HANDOVER.md` first for what exists. Read `CLAUDE.md` for the constraints that
 survive any of this, because discovery is the phase most likely to break them: it is the
@@ -235,6 +243,21 @@ into a box. The app then enriches what it can and routes the rest to judging.
 This deliberately keeps a human in the loop rather than pretending an API exists. It
 also makes Search Passes 2 and 4 (competitor audits, subreddit and Discord moderators)
 operable, which no vendor will ever automate.
+
+### Phase 2a — Step 3 screening · ~1 day · free — ✅ **BUILT** (2026-09-11)
+The red-flag triage between discovery and judging. `screening.py` answers the spec's
+Step 3 checks per creator, and adds the verdict the spec does not have: **`UNKNOWN`**,
+for checks where nothing was ever sourced. A triage that reported PASS on a creator
+nobody looked at would launder an absence of evidence into a clean bill of health — the
+never-invent rule applied to judgement rather than to metrics.
+
+The useful output is not the verdicts but the **backlog**: `screen_all()` reports which
+checks are unanswered across the pool, blocking ones first, which is the sourcing to-do
+list in priority order. Run against the bundled pool it says, correctly, that brand
+safety is unreviewed on all 25 rows and `engagement_rate` is sourced on none of them.
+
+Read-only by construction: `/screen` has no form, writes no status, and shares the Step 3
+gates with the scorer by calling them rather than reimplementing them.
 
 ### Phase 3 — scraping tier · ~1–2 days · $0 to prototype, ~$40–100/mo at volume
 One adapter behind the same interface, starting on EnsembleData's free 50/day. Closes

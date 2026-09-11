@@ -80,6 +80,18 @@ automated search (YouTube) is built but needs an API key. The full picture is in
 a four-phase build order with a working $0 tier, and an honest account of what stays
 manual.
 
+### Screen a list before you pitch anyone
+
+`/screen` runs the spec's Step 3 red-flag triage over the pool — deliverable fit,
+competitor exclusivity, comment quality, engagement ratio, view-to-follower, growth
+curve, brand safety. The spec wants PASS / FLAG / FAIL. The app adds **`UNKNOWN`** for
+checks nothing was ever sourced to answer, because reporting PASS on a creator nobody
+looked at would turn an absence of evidence into a clean bill of health.
+
+So the useful output is **what to source next**: every unanswered check across the pool,
+blocking ones first. It is read-only — clearing a check means sourcing the evidence, not
+ticking a box.
+
 ### Judge a list so it can be scored
 
 Four of the five dimensions, and the readiness call that assigns campaign role, are

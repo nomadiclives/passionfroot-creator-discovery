@@ -220,6 +220,59 @@ DEFAULT_DELIVERABLE_FORMATS = ("short_video", "long_video")
 
 
 # --------------------------------------------------------------------------
+# Step 3 screening — the triage vocabulary and thresholds.
+#
+# Screening is a TRIAGE, not a score: every check answers PASS / FLAG / FAIL,
+# or UNKNOWN when nothing was ever sourced to answer it. UNKNOWN is the whole
+# point. A check with no data is not a pass, and a screening report where every
+# row reads PASS because nothing was checked is exactly the "short list that
+# looks complete" failure this codebase exists to prevent.
+# --------------------------------------------------------------------------
+SCREEN_PASS = "PASS"
+SCREEN_FLAG = "FLAG"
+SCREEN_FAIL = "FAIL"
+SCREEN_UNKNOWN = "UNKNOWN"
+
+# How a check was answered. This records the CHECK, not the creator — a reader
+# needs to know whether a verdict was arithmetic or somebody's opinion.
+BASIS_COMPUTED = "computed"      # arithmetic over sourced metrics
+BASIS_RECORDED = "recorded"      # a human or an API wrote the field
+BASIS_HUMAN = "human"            # no data source can ever supply this
+
+# Comment-quality vocabulary, shared with scorer.py so the D3 authenticity gate
+# and the screening check can never drift apart. Both read these tuples.
+COMMENT_QUALITY_INAUTHENTIC = ("inauthentic", "suspected", "bot")
+COMMENT_QUALITY_GENERIC = ("generic", "emoji")
+COMMENT_QUALITY_GOOD = ("substantive", "varied", "engaged")
+
+# The spec's own Step 3 authenticity thresholds, in percent. These flag a
+# SUSPECT engagement ratio and are deliberately NOT the D3 eligibility floors
+# (TikTok/Instagram 3.5%, YouTube 1.5%) — the spec states both, they are
+# different numbers doing different jobs, and conflating them would import a
+# scoring decision into a triage.
+#
+# These read `engagement_rate` — (likes + comments) / reach. They must never be
+# answered with `resonance_rate`, which is a VIEW rate on feed video. The two
+# are different constructs measured on different denominators; substituting one
+# for the other is the exact conflation the D3 instrument model exists to stop.
+SCREEN_ENGAGEMENT_SUSPECT = {
+    "tiktok": 1.0,
+    "instagram": 1.5,
+    "youtube": 0.5,
+    "linkedin": None,   # no published threshold in the spec, and uncalibrated here
+}
+
+# View-to-follower floor, below which views are "consistently MUCH lower than
+# followers" — ghost following or a shadow-ban, per the spec's red flag.
+#
+# PROJECT-SET, NOT FROM THE SPEC. The spec says "MUCH lower" and names no
+# number, so this is a policy choice and is labelled as one wherever it is
+# reported. It raises a FLAG for a human to look at; it never FAILs a creator
+# on a threshold the spec never stated.
+SCREEN_VIEW_FOLLOWER_FLOOR_PCT = 10.0
+
+
+# --------------------------------------------------------------------------
 # Campaign role (Step 5a) — a CLASSIFICATION, not a score.
 #
 # Role reads the audience's relationship to the campaign's product CATEGORY,

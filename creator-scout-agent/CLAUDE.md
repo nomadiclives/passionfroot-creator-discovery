@@ -179,6 +179,46 @@ Two merge rules in `discovery.merge()`:
 The spec's seed hashtags belong to the campaign they were written for and are used only
 when the brief names that brand — the same non-transfer rule as `readiness_category`.
 
+### 8. A screening check nobody answered is not a pass
+`screening.py` is Step 3 — the red-flag triage between discovery and judging. The spec
+asks for PASS / FLAG / FAIL per check. This implementation adds a fourth answer,
+**`UNKNOWN`**, and it is the reason the module earns its place.
+
+A triage that reports PASS on a creator nobody looked at launders an absence of evidence
+into a clean bill of health. That is rule 1 one level up: not a number nobody measured,
+but a **judgement nobody made**. So:
+
+- A check with no data returns `UNKNOWN`, never `PASS`.
+- An `UNKNOWN` on a **blocking** check holds the row at `NEEDS_SCREENING`, and it
+  **outranks `FLAG`** — a concern somebody weighed is a better position than a gap
+  nobody looked at. Precedence is `FAIL` > unanswered-blocking > `FLAG` > `PASS`.
+- An empty field is not good news. A creator with no sourced sponsors has not been
+  cleared of a competitor conflict, so `check_competitor` returns `UNKNOWN`, not `PASS`.
+- A value the module does not recognise is `UNKNOWN`, not the nearest verdict.
+
+Every check records a `basis`: `computed` (arithmetic over sourced data), `recorded` (a
+human or an API wrote the field), or `human` (no source in this app can ever supply it —
+brand safety and the follower growth curve, per `DISCOVERY_PLAN.md` §5). The consequence
+is deliberate: **the bundled pool screens as all `NEEDS_SCREENING`**, because nobody has
+recorded a brand-safety review. `screen_all()` reports which checks are unanswered most
+often, which is the sourcing backlog in priority order.
+
+Two boundaries that must hold exactly:
+
+- **Screening never conflates `engagement_rate` with `resonance_rate`.** The spec's Step 3
+  suspect thresholds read an engagement ratio; `resonance_rate` is a view rate on a
+  different denominator. Substituting one for the other collapses the instrument
+  distinction rule 4 is built on, so an absent `engagement_rate` is `UNKNOWN`.
+- **Screening never infers demographics from content.** `audience_evidence()` gathers the
+  signals the spec's Audience Fit block asks a human to weigh and attaches **no verdict**.
+  It never writes `audience_18_24_pct` or `geo_us_pct` — D1 and D4, 40% of the score.
+
+Screening is also **read-only**: it writes no status, score or role, and `/screen` has no
+form. Clearing a check means sourcing evidence onto the row, not ticking a box. The Step 3
+gates it shares with the scorer (`can_deliver`, `competitor_hit`) are *called*, not
+reimplemented, and `tests/test_screening.py` pins that screening FAILs exactly the
+creators the scorer drops.
+
 ## Enrichment toggle
 
 `config.py` -> `ENRICHMENT_ENABLED` (default `False`).
@@ -198,10 +238,11 @@ scheduler.py    weekly soft-roster discovery loop
 app.py          Flask API + server-rendered UI
 creator_pool.py uploaded-pool parsing/parking, and the judging write-back
 discovery.py    the discovery seam — candidates, provenance, dedupe (Step 2)
+screening.py    Step 3 red-flag triage — PASS/FLAG/FAIL/UNKNOWN, read-only
 sources/        discovery adapters: query_plan.py (free), youtube.py (needs a key)
 templates/      base.html (shell), index.html (Screen 1 brief),
                 results.html (Screen 2 shortlist), judge.html (judging screen),
-                discover.html (Screen 0 discovery),
+                discover.html (Screen 0 discovery), screen.html (Step 3 triage),
                 schedule.html (schedule console)
 static/         styles.css
 data/           creators.json (sourced), pipeline_intel.json
@@ -219,6 +260,8 @@ After any change, actually run the app and confirm the UI renders — do not ass
 4. Spot-check the weighted score of at least 3 creators by hand against the formula.
 5. Export to CSV downloads a valid file with a header row.
 6. `GET /schedule` (and `/api/schedule`) returns a valid JSON response.
+7. `GET /screen` renders the triage matrix and the "what to source next" backlog,
+   and `/api/screen` answers the same as JSON.
 
 `python -m pytest tests/` covers all six against the Flask test client, plus the formula
 identity and spec/config agreement. **The test client is not a browser**: it proves the

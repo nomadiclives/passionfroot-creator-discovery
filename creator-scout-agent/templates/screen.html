@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Screen the pool — Creator Campaign Scout{% endblock %}
+
+{#
+  Step 3 triage. Read-only by design: there is no form here, because clearing a
+  check means sourcing evidence and putting it on the row, not ticking a box on
+  a screen. The most useful thing on the page is the backlog card — the checks
+  nobody has answered, which is the sourcing to-do list in priority order.
+#}
+
+{% macro verdict_pill(verdict, reason) %}
+  <span class="status {{ verdict_classes.get(verdict, 'status-needs-calibration') }}"
+        {% if reason %}title="{{ reason }}"{% endif %}>{{ verdict }}</span>
+{% endmacro %}
+
+{% block content %}
+<section class="hero hero-row">
+  <div>
+    <h1>Screen the pool</h1>
+    <p class="lede">
+      {{ result.total }} creator{{ "s" if result.total != 1 }} triaged against
+      <strong>{{ criteria.brand_name }}</strong> · Step 3 red-flag checks
+    </p>
+    <p class="lede pool-source">Pool: <strong>{{ pool.filename }}</strong></p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
+    {# The brief travels with the link. Judging records readiness against
+       criteria.category, so dropping the brief here would quietly judge the
+       pool against the default campaign instead of this one. #}
+    <a class="btn" href="{{ url_for('judge', pool_token=pool.token, **form_values) }}">Judge the pool</a>
+  </div>
+</section>
+
+<div class="counts">
+  <div class="count count-keep"><b>{{ result.counts[PASS] }}</b><span>Pass</span></div>
+  <div class="count count-refresh"><b>{{ result.counts[FLAG] }}</b><span>Flag</span></div>
+  <div class="count count-drop"><b>{{ result.counts[FAIL] }}</b><span>Fail</span></div>
+  <div class="count count-review">
+    <b>{{ result.counts[NEEDS_SCREENING] }}</b><span>Not yet screened</span>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>A check nobody answered is not a pass.</strong>
+  <p>
+    The spec asks for PASS / FLAG / FAIL per check. This screen adds a fourth answer —
+    <code>UNKNOWN</code> — for checks where nothing was ever sourced. A triage that
+    reported PASS on a creator nobody looked at would launder an absence of evidence
+    into a clean bill of health, which is the same failure as inventing a metric, one
+    level up: a <em>judgement</em> nobody made rather than a number nobody measured.
+  </p>
+  <p>
+    So an unanswered <strong>blocking</strong> check holds the whole row at
+    <code>NEEDS_SCREENING</code>, and it outranks a <code>FLAG</code> — a concern
+    somebody weighed is a better position than a gap nobody looked at.
+  </p>
+</div>
+
+{% if result.unknown_by_check %}
+<section class="card">
+  <h2>What to source next</h2>
+  <p class="note">
+    Every unanswered check across the pool, blocking ones first. This is the sourcing
+    backlog: the top row is what is holding the most creators.
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Check</th>
+          <th class="num">Unanswered</th>
+          <th>Blocking</th>
+          <th>Answered by</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in result.unknown_by_check %}
+        <tr>
+          <td class="creator-name">{{ entry.label }}</td>
+          <td class="num strong">{{ entry.count }} / {{ result.total }}</td>
+          <td>
+            {% if entry.blocking %}
+              <span class="tag tag-warn">blocking</span>
+            {% else %}
+              <span class="tag tag-quiet">not blocking</span>
+            {% endif %}
+          </td>
+          <td class="angle">
+            {% if entry.basis == "human" %}
+              A person. No source wired into this app can answer it —
+              permanently manual.
+            {% elif entry.basis == "recorded" %}
+              A recorded field, from a human or an enrichment call.
+            {% else %}
+              Computed, once the data it reads is sourced onto the row.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Triage</h2>
+  <p class="note">
+    Hover any verdict for its reason. Open a creator's details for the full set,
+    plus the audience-fit evidence the spec asks a human to weigh — which is shown
+    as <em>evidence only</em>. It is never converted into an audience percentage:
+    that is D1 and D4, 40% of the score, and no free source can honestly supply it.
+  </p>
+  {% if not result.rows %}
+  <p class="note note-flag">
+    This pool has no rows, so there is nothing to triage. Upload a pool on the
+    brief screen, or collect handles on <a href="{{ url_for('discover') }}">Discover</a>.
+  </p>
+  {% else %}
+  <div class="table-scroll">
+    <table class="creators screen-matrix">
+      <thead>
+        <tr>
+          <th>Creator</th>
+          <th>Verdict</th>
+          {# Headers read off the first row's own checks, so a column can never
+             drift out of step with the cells beneath it. #}
+          {% for check in result.rows[0].checks %}
+          <th>{{ check.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.rows %}
+        <tr class="{{ 'row-drop' if row.verdict == FAIL }}">
+          <td>
+            <div class="creator-name">{{ row.name or row.handle or "—" }}</div>
+            <div class="creator-meta">{{ row.platform or "no platform recorded" }}</div>
+          </td>
+          <td>
+            {{ verdict_pill(row.verdict, row.decided_by and "decided by: " ~ row.decided_by) }}
+            {# Only while the row is actually waiting. On a FAIL the creator is
+               out, so listing the checks nobody finished is noise. #}
+            {% if row.verdict == NEEDS_SCREENING and row.open_items %}
+            <div class="reason">Waiting on: {{ row.open_items|join(", ") }}</div>
+            {% elif row.verdict == FAIL %}
+            <div class="reason">{{ row.decided_by }}</div>
+            {% endif %}
+          </td>
+          {% for check in row.checks %}
+          <td>{{ verdict_pill(check.verdict, check.reason) }}</td>
+          {% endfor %}
+        </tr>
+        {# The reasons get a row of their own. Nested in the name column they
+           rendered as a thin ribbon down the page and were unreadable. #}
+        <tr class="screen-detail {{ 'row-drop' if row.verdict == FAIL }}">
+          <td colspan="{{ 2 + row.checks|length }}">
+            <details class="evidence">
+              <summary>Why — {{ row.name or row.handle or "this creator" }}</summary>
+              <ul>
+                {% for check in row.checks %}
+                <li>
+                  <strong>{{ check.label }}:</strong>
+                  {{ check.verdict }} — {{ check.reason }}
+                </li>
+                {% endfor %}
+                {% if row.missing_metrics %}
+                <li>
+                  <strong>Metric gaps:</strong> {{ row.missing_metrics|join(", ") }} —
+                  sourced, never typed. A metric gap is not a screening gap.
+                </li>
+                {% endif %}
+                {% if row.audience_evidence %}
+                <li>
+                  <strong>Audience-fit evidence</strong>
+                  — for a human to weigh, no verdict attached:
+                  <ul>
+                    {% for item in row.audience_evidence %}
+                    <li>{{ item.label }}: {{ item.value }}</li>
+                    {% endfor %}
+                  </ul>
+                </li>
+                {% endif %}
+              </ul>
+            </details>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>What screening will not do</h2>
+  <ul class="rules">
+    <li>
+      <strong>Infer demographics from content.</strong> "They mention dorms, so the
+      audience is 18-24" is a guess wearing evidence's clothes. Content signals are
+      gathered and shown; they are never written to
+      <code>audience_18_24_pct</code> or <code>geo_us_pct</code>.
+    </li>
+    <li>
+      <strong>Score, rank or assign a role.</strong> Triage answers whether to
+      consider someone at all. Judgement belongs on the
+      <a href="{{ url_for('judge', pool_token=pool.token, **form_values) }}">judging screen</a>,
+      scoring to the engine.
+    </li>
+    <li>
+      <strong>Read a creator's last 60 days.</strong> Brand safety and the follower
+      growth curve are human reads. No API in this app classifies controversy, and
+      none returns a follower time series, so those checks stay
+      <code>UNKNOWN</code> until a person records an answer on the row.
+    </li>
+    <li>
+      <strong>Treat an empty field as good news.</strong> A creator with no sourced
+      sponsors has not been cleared of a competitor conflict — nobody looked.
+    </li>
+  </ul>
+</section>
+{% endblock %}

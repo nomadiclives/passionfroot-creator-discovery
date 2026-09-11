@@ -209,6 +209,30 @@ until real metrics are attached. The app will not fill them in.
 — built and tested, but it needs `YOUTUBE_API_KEY` set and **has never made a real
 call**. See `HANDOVER.md`.
 
+## Screening — the triage in between
+
+`/screen` runs Step 3 of the spec over the current pool: deliverable fit, competitor
+exclusivity, comment quality, the engagement suspect ratio, view-to-follower, the growth
+curve and brand safety. The spec asks for PASS / FLAG / FAIL per check. This adds a
+fourth answer, and it is the point of the screen:
+
+> **`UNKNOWN` — nothing was ever sourced to answer this check.**
+
+A triage that reported PASS on a creator nobody looked at would turn an absence of
+evidence into a clean bill of health — the never-invent rule applied to judgement rather
+than to metrics. So an unanswered **blocking** check holds the row at `NEEDS_SCREENING`,
+and a creator with no sourced sponsors is `UNKNOWN` on competitor exclusivity, never
+`PASS`: nobody checked.
+
+The most useful thing on the page is therefore not the verdicts but **what to source
+next** — every unanswered check across the pool, blocking ones first. Against the bundled
+pool it reports, correctly, that brand safety is unreviewed on all 25 rows.
+
+The screen is **read-only**. It has no form, writes no status, score or role, and calls
+the scorer's own Step 3 gates rather than reimplementing them — so it can never show a
+verdict the shortlist would contradict. Clearing a check means sourcing the evidence onto
+the row.
+
 [`DISCOVERY_PLAN.md`](DISCOVERY_PLAN.md) scopes the rest: a tiered source inventory from
 free to paid, where discovery plugs into the existing engine, a four-phase build order
 with a genuinely useful **$0 tier**, and what stays manual permanently. The headline
@@ -225,13 +249,17 @@ config.py        campaign defaults, locked weights, instruments, gates, toggles
 agent_spec.py    loads the checked-in skill spec and guards weight drift
 enricher.py      Favikon / Modash enrichment stub, off by default
 scheduler.py     soft-roster discovery loop
+discovery.py     the discovery seam — candidates, provenance, dedupe (Step 2)
+screening.py     Step 3 red-flag triage — PASS/FLAG/FAIL/UNKNOWN, read-only
+sources/         discovery adapters: query_plan.py (free), youtube.py (needs a key)
 agents/          the skill spec — the spec of record
-templates/       index.html, results.html, judge.html, schedule.html, base.html
+templates/       index.html, results.html, judge.html, discover.html,
+                 screen.html, schedule.html, base.html
 static/          styles.css
 data/            creators.json, pipeline_intel.json
 reports/         soft_roster_YYYY-MM-DD.csv (generated)
 logs/            scheduler.log (generated)
-tests/           201 tests
+tests/           237 tests
 ../render.yaml   Render blueprint (repo root)
 ```
 
