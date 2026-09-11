@@ -340,6 +340,9 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 .guide-steps li { margin-bottom: 6px; }
 .guide-steps li:last-child { margin-bottom: 0; }
 .guide-steps strong { font-weight: 650; }
+/* Prose after the numbered steps needs the same gap the steps have between
+   them, or the caveat reads as a fourth step that lost its number. */
+.guide-steps + p { margin-top: 12px; }
 
 /* Numbered step headings, for pages that are a sequence rather than a table. */
 .step-num {
@@ -369,6 +372,19 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 }
 .pass > summary::marker { color: var(--ink-faint); }
 .pass-count { font-weight: 400; color: var(--ink-faint); }
+/* Every pass is closed on load, so the one line that tells you whether this
+   angle is worth opening has to live in the summary rather than behind it. */
+.pass-title { color: var(--accent); }
+.pass-look {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--ink-soft);
+  max-width: 82ch;
+}
+.pass-look strong { color: var(--ink); font-weight: 600; }
+.pass > summary { list-style-position: outside; }
 
 /* ---------- screening matrix (Step 3 triage) ---------- */
 /* Nine columns of verdicts, so it is wider than the shortlist table and scrolls
@@ -605,3 +621,82 @@ table.flow th, table.weights th, table.statuses th, table.deps th {
 .card-warn { border-left: 4px solid var(--amber); }
 .mismatch { color: var(--red); }
 details summary { cursor: pointer; color: var(--accent); margin-top: 0.5rem; }
+
+/* Pass 3 of the spec — the creator marketplaces — generates nothing, because
+   none of them exposes a linkable search. The numbering jumping 2 → 4 reads as
+   a bug unless the page says otherwise, so the gap gets a block of its own. */
+.pass.pass-absent {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.pass-absent .note {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f7f8fa;
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 6px 6px 0;
+  max-width: 82ch;
+}
+
+/* The optional-automation table on Discover. It borrows the shortlist table's
+   rules but not its cells: .creator-meta clips at 22ch with an ellipsis, which
+   ate the explanation of what a missing API key actually costs you. */
+.sources .source-name { font-weight: 600; white-space: nowrap; }
+.sources .source-note {
+  font-size: 13px;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+/* The query tiles are links to a real search on another site. They did not read
+   as links, so each carries the outbound mark. */
+.query-go { color: var(--ink-faint); font-size: .8rem; }
+.query-link:hover .query-go { color: var(--accent); }
+
+/* A card heading that opens with a step number needs the text to sit on the
+   circle's centre line rather than its baseline. */
+h2 .step-num { vertical-align: -1px; }
+
+/* ---------- work-in-progress banner ----------
+   Discover is half-built and is being shown to people outside the team. Saying
+   so plainly, at the top, is better than letting them discover it by finding
+   the gap themselves. Amber rather than red: this is a state, not a failure. */
+.wip {
+  background: var(--amber-soft);
+  border: 1px solid #ecd9a6;
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  font-size: 14px;
+}
+.wip > strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--amber);
+  font-size: 15px;
+}
+.wip p { margin: 8px 0 0; max-width: 82ch; }
+
+/* Status legend on the shortlist — five terms a visitor has never seen, each
+   with one plain sentence. Two columns so the pill and its meaning stay on the
+   same line at desk width, stacking when there is no room. */
+.legend {
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 16px;
+  align-items: baseline;
+}
+.legend dt { margin: 0; }
+.legend dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  max-width: 78ch;
+}
+@media (max-width: 620px) {
+  .legend { grid-template-columns: 1fr; gap: 4px; }
+  .legend dd { margin-bottom: 10px; }
+}

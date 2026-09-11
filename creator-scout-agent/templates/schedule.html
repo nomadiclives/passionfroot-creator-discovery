@@ -17,6 +17,24 @@
   </div>
 </section>
 
+<section class="guide">
+  <h2>What this page is for</h2>
+  <p>
+    Building a shortlist by hand takes days, and briefs usually arrive with less notice
+    than that. This page runs the whole pipeline on a repeating schedule against the
+    campaigns you know are coming, so a rough shortlist already exists on the day a brief
+    is signed rather than starting from nothing.
+  </p>
+  <ol class="guide-steps">
+    <li><strong>Cadence</strong> sets how often that happens. <strong>Run now</strong>
+      does one immediately, which is the quickest way to see what this produces.</li>
+    <li><strong>Pipeline</strong> is the list of upcoming campaigns it runs for. It is
+      edited in a file, not here.</li>
+    <li><strong>Last run</strong> reports how each campaign came out. A high
+      <strong>Review</strong> count is normal and is explained under that table.</li>
+  </ol>
+</section>
+
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}

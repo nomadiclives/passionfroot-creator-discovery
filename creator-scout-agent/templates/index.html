@@ -11,6 +11,28 @@
   </p>
 </section>
 
+<section class="guide">
+  <h2>What this page is for</h2>
+  <p>
+    This is the starting point. Everything the app does afterwards — which creators it
+    keeps, which it drops, what it says a campaign would cost — is decided by what you
+    type here, so it is worth being specific.
+  </p>
+  <ol class="guide-steps">
+    <li><strong>Attach a list of creators</strong>, or leave the file field empty to try
+      the app against the {{ bundled_count }} sample creators bundled with it.</li>
+    <li><strong>Describe the campaign</strong> — the brand, what the product is, the
+      audience you want reached, the platforms, the budget per thousand views, and any
+      brands a creator must not have worked with.</li>
+    <li><strong>Press Build shortlist.</strong> The next screen scores every creator in
+      the list and shows you why each one ranked where it did.</li>
+  </ol>
+  <p>
+    If you have no list yet, start on <a href="{{ url_for('discover') }}">Discover</a>
+    instead — it builds searches from this brief and turns what you find into a list.
+  </p>
+</section>
+
 {% if spec.available and not spec.weights_match_spec %}
 <div class="alert alert-danger">
   <strong>Weights have drifted from the spec.</strong>

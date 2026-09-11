@@ -18,7 +18,11 @@
       <nav>
         <a href="{{ url_for('index') }}">Brief</a>
         <a href="{{ url_for('discover') }}">Discover</a>
-        <a href="{{ url_for('screen') }}">Screen</a>
+        {# Screen is deliberately not in the nav, and is still reachable at
+           /screen — the route, /api/screen and the page are untouched. On a pool
+           nobody has screened it renders as a column of grey NEEDS_SCREENING
+           rows. That is the correct answer, and it reads as a broken page to a
+           visitor who has not been told why. #}
         <a href="{{ url_for('schedule_console') }}">Schedule</a>
         <a href="{{ url_for('how_it_works') }}">How it works</a>
       </nav>

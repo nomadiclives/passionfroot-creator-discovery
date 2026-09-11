@@ -53,6 +53,28 @@
   </div>
 </section>
 
+<section class="guide">
+  <h2>What this page is for</h2>
+  <p>
+    This is the answer to the brief: every creator in the pool, scored out of 100 against
+    the five things the campaign cares about, ranked, and given a role in the campaign.
+    The people worth approaching are at the top of the big table, numbered.
+  </p>
+  <ol class="guide-steps">
+    <li><strong>Read the five counters</strong> below. They split the pool into
+      shortlisted, and four kinds of not-yet — each explained under the counters.</li>
+    <li><strong>Work down the table.</strong> Every row carries its own score breakdown
+      and, where it was not shortlisted, the reason in plain words.</li>
+    <li><strong>Export the CSV</strong> to take the shortlist elsewhere, or go to the
+      judging screen to supply whatever human judgement is still missing.</li>
+  </ol>
+  <p>
+    Everything evaluated stays on the page, including creators the engine refused to
+    score. A row that quietly disappeared would look the same as a creator nobody ever
+    went looking for, and those are very different problems.
+  </p>
+</section>
+
 {% if result.readiness_mismatch %}
 <div class="alert alert-info">
   <strong>
@@ -102,6 +124,54 @@
   <div class="count count-refresh"><b>{{ counts.needs_refresh }}</b><span>Needs refresh</span></div>
   <div class="count count-calibration"><b>{{ counts.needs_calibration }}</b><span>Needs calibration</span></div>
   <div class="count count-drop"><b>{{ counts.dropped }}</b><span>Dropped</span></div>
+</section>
+
+<section class="card">
+  <h2>What each status means</h2>
+  <p class="note">
+    Every row in the table further down carries one of these five. Three of them are not
+    verdicts on the creator at all — they are the app telling you what it is still
+    missing.
+  </p>
+  <dl class="legend">
+    <dt><span class="status status-keep">Keep</span></dt>
+    <dd>
+      Scored, cleared every gate, and ranked into the shortlist. Ready to approach.
+    </dd>
+
+    <dt><span class="status status-drop">Drop</span></dt>
+    <dd>
+      Ruled out, and the row says why: they cannot make the deliverable this campaign
+      needs, they hit one of the competitor exclusions you named, they are outside the
+      follower band or not on a briefed platform, their engagement looks inauthentic, or
+      they scored below 35 out of 100. The reason printed on the row is the authority
+      here. Usually final.
+    </dd>
+
+    <dt><span class="status status-needs-refresh">NEEDS_REFRESH</span></dt>
+    <dd>
+      A required number is missing — a follower count, or the rate that says whether the
+      audience actually shows up. Without it there is nothing honest to score, so the
+      creator is held here until someone sources the real figure. The app will never
+      estimate one to fill the gap.
+    </dd>
+
+    <dt><span class="status status-needs-review">NEEDS_REVIEW</span></dt>
+    <dd>
+      The numbers are there, but a human call is not — the four judged scores, or the
+      read on how familiar this creator's audience already is with
+      <strong>{{ criteria.category }}</strong>. A judgement recorded about a different
+      product category also lands here rather than being carried across. Fill it in on
+      the judging screen.
+    </dd>
+
+    <dt><span class="status status-needs-calibration">NEEDS_CALIBRATION</span></dt>
+    <dd>
+      Nothing is wrong with the creator. Their platform has no scoring bands fitted yet
+      (LinkedIn, today), so the app cannot say whether a given rate is good or bad
+      without inventing the boundary — and it would rather say so.
+    </dd>
+  </dl>
 </section>
 
 <div class="cols">

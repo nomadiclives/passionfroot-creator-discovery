@@ -19,14 +19,29 @@
   <div>
     <h1>Discover creators</h1>
     <p class="lede">
-      {{ plan.total_queries }} searches across {{ plan.passes|length }} passes for
-      <strong>{{ brief.brand_name }}</strong> · {{ brief.category }}
+      Ready-made searches for <strong>{{ brief.brand_name }}</strong> · {{ brief.category }}
+      — {{ plan.total_queries }} of them, grouped into {{ plan.passes|length }} angles
     </p>
   </div>
   <div class="hero-actions">
     <a class="btn" href="{{ url_for('index') }}">Edit brief</a>
   </div>
 </section>
+
+<div class="wip">
+  <strong>This screen is unfinished. The rest of the app is not.</strong>
+  <p>
+    What works today: it turns your brief into real searches you can click, and any
+    handle you paste back becomes a candidate the scoring side treats exactly like one
+    that came from a spreadsheet. Nothing here is a mock-up.
+  </p>
+  <p>
+    What is missing: the app cannot yet run most of these searches for you. TikTok,
+    Instagram and Reddit have no free way to search accounts you do not own, so you run
+    those in a browser and paste the names back. YouTube can be automated with a free
+    key; the rest is on the roadmap in <code>DISCOVERY_PLAN.md</code>.
+  </p>
+</div>
 
 {% if error %}
 <div class="alert alert-danger">
@@ -35,62 +50,92 @@
 </div>
 {% endif %}
 
-<div class="alert alert-info">
-  <strong>These are searches, not results.</strong>
+<section class="guide">
+  <h2>What this page is for</h2>
   <p>
-    Nothing on this page has been validated. The app builds the queries from your brief;
-    you run the ones that look useful and paste back what you find. That is deliberate —
-    the spec says discovery "produces a query plan and candidate pool, not verified
-    metrics", and on TikTok and Instagram that is simply true: nothing free exposes data
-    about accounts you do not own.
+    This is where a shortlist starts: finding people worth looking at. The app reads your
+    brief and writes the searches for you, so you are not guessing what to type into
+    TikTok. You click the ones that look useful, and paste back the handles you liked.
   </p>
+  <ol class="guide-steps">
+    <li><strong>Run some searches.</strong> Every tile below opens a real search on
+      TikTok, YouTube, Instagram, LinkedIn or Reddit in a new tab. Start with a handful,
+      not all {{ plan.total_queries }}.</li>
+    <li><strong>Paste back who you found.</strong> Profile links or handles, one per
+      line. They join a pool you can screen, judge and score.</li>
+  </ol>
   <p>
-    A pasted handle is a <em>lead</em>, not a measurement. Collected rows arrive as
-    <code>NEEDS_REFRESH</code> until real metrics are attached — the app will not fill
-    them in.
+    One thing to expect: the people you paste arrive with <strong>no numbers attached</strong>,
+    marked <strong>NEEDS_REFRESH</strong>. A name you found in a search is a lead, not a
+    measurement — the app will not invent a follower count to make the row look finished.
+    You add the real numbers later.
   </p>
-</div>
+</section>
 
-<div class="card">
-  <h2>Automated sources</h2>
-  <table class="creators">
-    <thead><tr><th>Source</th><th>Status</th><th>What it gives</th></tr></thead>
-    <tbody>
-      {% for source in availability %}
-      <tr>
-        <td class="creator-name">{{ source.name }}</td>
-        <td>
-          {% if source.available %}
-            <span class="status status-keep">ready</span>
-          {% else %}
-            <span class="status status-needs-refresh">not configured</span>
-          {% endif %}
-        </td>
-        <td class="creator-meta">
-          {% if source.available %}
-            {% if source.name == 'youtube' %}
-              Real search and measured metrics. Budget: {{ quota_per_day }} units/day,
-              and a search costs {{ search_cost }} — so about
-              {{ (quota_per_day / search_cost)|int }} searches a day.
-            {% else %}
-              Builds the click-through plan below.
-            {% endif %}
-          {% else %}
-            {{ source.reason }}
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-<div class="card">
-  <h2>Paste back what you found</h2>
+<section class="card">
+  <h2><span class="step-num">1</span>Run some searches</h2>
   <p class="hint">
-    One per line — a profile URL (the platform is read from it), or a bare handle plus
-    the platform below. Run this as many times as you like; each paste adds to the same
-    pool.
+    Each group below is a <strong>pass</strong> — a different angle of attack for finding
+    the same kind of person. One sweeps hashtags and content, another looks at who your
+    competitors have already paid, another reads communities. They surface different
+    people, so it is worth running more than one. Each is closed to keep this page
+    readable — open one to see its searches.
+  </p>
+  <p class="hint">
+    Search terms tagged <span class="tag tag-quiet">brief</span> were built from what you
+    typed on the brief screen. Terms tagged <span class="tag tag-quiet">spec</span> come
+    from the checked-in campaign spec, and are only used when your brief is for the
+    campaign that spec was written about.
+    {% for note in plan.notes %}{% if 'written for' in note %}<br><strong>{{ note }}</strong>{% endif %}{% endfor %}
+  </p>
+
+  {% for group in plan.passes %}
+  {% if group.pass.startswith('Pass 4') %}
+  <div class="pass pass-absent">
+    <p class="note">
+      <strong>Pass 3 is deliberately missing.</strong> In the spec it is the creator
+      marketplaces — TikTok Creator Marketplace, Instagram Creator Marketplace, YouTube
+      BrandConnect. They need verified business-account access and none of them has a
+      search address you can link to, so there is nothing for this page to generate. The
+      numbering follows the spec rather than renumbering around the gap.
+    </p>
+  </div>
+  {% endif %}
+  <details class="pass">
+    <summary>
+      <span class="pass-title">{{ group.pass }}</span>
+      <span class="pass-count">— {{ group.queries|length }}
+        search{{ "es" if group.queries|length != 1 }}</span>
+      <span class="pass-look">
+        <strong>What to look for:</strong> {{ group.what_to_look_for }}
+      </span>
+    </summary>
+    <p class="hint">
+      Each tile opens that search on the platform named, in a new tab. Nothing is
+      recorded when you click — come back here and paste the handles you want to keep.
+    </p>
+    <div class="query-grid">
+      {% for query in group.queries %}
+      <a class="query-link" href="{{ query.url }}" target="_blank" rel="noopener noreferrer"
+         title="Opens a {{ query.platform }} search for “{{ query.term }}” in a new tab">
+        <span class="query-platform">{{ query.platform }}</span>
+        <span class="query-term">{{ '#' if query.kind == 'hashtag' }}{{ query.term }}</span>
+        <span class="tag tag-quiet">{{ query.origin }}</span>
+        <span class="query-go" aria-hidden="true">↗</span>
+      </a>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2><span class="step-num">2</span>Paste back who you found</h2>
+  <p class="hint">
+    One per line. A profile link is easiest — the platform is read out of the address. A
+    bare handle (just <code>@name</code>, with no link) needs you to say which platform
+    it is on, below, or it is skipped rather than guessed at. Run this as many times as
+    you like; each paste adds to the same pool.
   </p>
   <form method="post" action="{{ url_for('discover_collect') }}">
     {{ hidden_brief(form_values) }}
@@ -107,40 +152,79 @@
         </select>
       </label>
       <label class="field">
-        <span>Which pass found these</span>
+        <span>Where you found them</span>
         <input type="text" name="paste_pass" value="manual paste"
                placeholder="e.g. Pass 1 — #aitools">
       </label>
       <button type="submit" class="btn btn-primary">Collect and score</button>
     </div>
   </form>
-</div>
-
-<div class="card">
-  <h2>The query plan</h2>
   <p class="hint">
-    Terms marked <span class="tag tag-quiet">spec</span> come from the checked-in skill
-    spec; <span class="tag tag-quiet">brief</span> terms are derived from what you typed.
-    {% for note in plan.notes %}{% if 'written for' in note %}<br><strong>{{ note }}</strong>{% endif %}{% endfor %}
+    "Where you found them" is a note to your future self, kept on every row: which search
+    turned this person up. The same creator arriving from two different passes is a good
+    sign, and the app keeps that rather than collapsing it away.
   </p>
+</section>
 
-  {% for group in plan.passes %}
-  <h3>{{ group.pass }}</h3>
-  <p class="hint">{{ group.what_to_look_for }}</p>
-  <div class="query-grid">
-    {% for query in group.queries %}
-    <a class="query-link" href="{{ query.url }}" target="_blank" rel="noopener noreferrer">
-      <span class="query-platform">{{ query.platform }}</span>
-      <span class="query-term">{{ '#' if query.kind == 'hashtag' }}{{ query.term }}</span>
-      <span class="tag tag-quiet">{{ query.origin }}</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% endfor %}
-</div>
+<section class="card">
+  <h2>Can the app search for me?</h2>
+  <p class="note">
+    Partly, and it is optional. Running the searches yourself is the normal path here and
+    nothing below is broken if it says otherwise.
+  </p>
+  <table class="creators sources">
+    <thead><tr><th>Source</th><th>How it runs</th><th>What that means</th></tr></thead>
+    <tbody>
+      {# The adapters are named for the code that implements them. On a page read
+         by someone who has never opened that code, they need a plain label. #}
+      {% set source_labels = {
+        "query_plan": "The searches on this page",
+        "youtube": "YouTube",
+      } %}
+      {% for source in availability %}
+      <tr>
+        <td class="source-name">{{ source_labels.get(source.name, source.name) }}</td>
+        <td>
+          {% if source.available %}
+            <span class="status status-keep">automatic</span>
+          {% else %}
+            <span class="status status-needs-review">you run it</span>
+          {% endif %}
+        </td>
+        <td class="source-note">
+          {% if source.available %}
+            {% if source.name == 'youtube' %}
+              A Google API key is set, so the app searches YouTube itself and brings back
+              measured view counts. It budgets {{ quota_per_day }} units a day at
+              {{ search_cost }} per search — about
+              {{ (quota_per_day / search_cost)|int }} searches daily — and stops rather
+              than returning a short list that looks complete.
+            {% else %}
+              Builds the searches above from your brief.
+            {% endif %}
+          {% else %}
+            {% if source.name == 'youtube' %}
+              An optional upgrade, not a fault. With a free Google API key in
+              <code>YOUTUBE_API_KEY</code>, the app would run the YouTube searches for you
+              and return real view counts. Without one, YouTube sits in the list above and
+              you run it by hand like the rest.
+            {% else %}
+              Runs by hand for now — {{ source.reason }}.
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    TikTok and Instagram are not on this list for a reason: nothing free exposes data
+    about accounts you do not own, so no key would change them.
+  </p>
+</section>
 
 <p class="hint">
-  Steps 2 and 3 of the spec are only partly built. What stays manual permanently — and
-  what the paid tiers would add — is in <code>DISCOVERY_PLAN.md</code>.
+  What stays manual permanently — and what a paid data tier would add — is written up in
+  <code>DISCOVERY_PLAN.md</code>.
 </p>
 {% endblock %}
