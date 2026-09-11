@@ -312,6 +312,28 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 }
 .flag-warn { background: var(--amber-soft); color: var(--amber); }
 
+/* ---------- rubric (How it works) ----------
+   The point ladders, printed verbatim from the spec. Monospace and preserved
+   whitespace because the spec aligns its bands in columns; reflowing it would
+   make the ladders harder to read, not easier. */
+.rubric-block {
+  margin: 0;
+  padding: 16px 18px;
+  background: #fbfbfc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre;
+  tab-size: 2;
+}
+.rubric-tiers, .rubric-bands { min-width: 0; margin-bottom: 6px; }
+.rubric-bands td.num { font-variant-numeric: tabular-nums; }
+#rubric h3 { margin-top: 22px; font-size: 15px; }
+#rubric h3:first-of-type { margin-top: 10px; }
+
 /* ---------- page guide ----------
    A short "what this page is for, and what to do" block at the top of each
    screen. The app is used by people who did not build it, and every screen

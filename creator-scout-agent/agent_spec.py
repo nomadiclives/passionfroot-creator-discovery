@@ -96,6 +96,19 @@ def sections() -> dict:
     return out
 
 
+def scoring_rubric() -> str:
+    """The scoring model's point ladders, verbatim from the spec.
+
+    Returned as the spec wrote it rather than parsed into fields. The ladders
+    are the thing a Creator Partnership Manager is being asked to trust, and a
+    paraphrase of them on screen could drift from the file the tests check —
+    which would be worse than not showing them, because it would be believed.
+    """
+    text = sections().get("Step 5 — Scoring Model", "")
+    block = re.search(r"```+\s*\n(.*?)\n```+", text, re.S)
+    return block.group(1).strip() if block else ""
+
+
 def hard_rules() -> list[str]:
     """The Hard Rules bullets — surfaced in the UI so constraints stay visible."""
     text = sections().get("Hard Rules", "")

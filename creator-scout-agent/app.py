@@ -172,6 +172,12 @@ def how_it_works():
         "how_it_works.html",
         spec=agent_spec.summary(),
         weights=config.SCORING_WEIGHTS,
+        # The rubric a shortlist is actually defensible by. Two sources on
+        # purpose: the ladders verbatim from the spec, and the bands the code
+        # applies read from live config, so a reader can see they agree.
+        rubric=agent_spec.scoring_rubric(),
+        dimension_points=config.DIMENSION_POINTS,
+        score_tiers=config.SCORE_TIERS,
         instruments=config.INSTRUMENTS,
         readiness_roles=config.READINESS_ROLES,
         role_colours=config.ROLE_COLOURS,

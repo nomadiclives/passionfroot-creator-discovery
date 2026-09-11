@@ -262,8 +262,86 @@
   </p>
 </section>
 
+<section class="card" id="rubric">
+  <h2>The rubric — how a creator earns each score</h2>
+  <p class="prose">
+    The weights above say how much each dimension counts. This says what actually
+    earns the points. Every sub-score on a shortlist is meant to be read off these
+    ladders from evidence rather than from impression, which is what makes a ranking
+    arguable with rather than just asserted.
+  </p>
+
+  <h3>Where the score lands</h3>
+  <table class="creators rubric-tiers">
+    <thead><tr><th>Tier</th><th class="num">Score /100</th></tr></thead>
+    <tbody>
+      {% for floor, label in score_tiers %}
+      <tr>
+        <td class="creator-name">{{ label }}</td>
+        <td class="num">
+          {% if loop.first %}{{ floor }}–100
+          {% elif floor == 0 %}below {{ score_tiers[loop.index0 - 1][0] }}
+          {% else %}{{ floor }}–{{ score_tiers[loop.index0 - 1][0] - 1 }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Dimension 3 bands, per platform</h3>
+  <p class="prose">
+    The one dimension the engine computes rather than takes from a human, so its
+    ladder lives in code and is printed here from the running configuration. Bands
+    differ by platform because the platforms are not comparable — a 30% view rate on
+    TikTok and a 30% interaction rate on LinkedIn are different events, so each
+    instrument normalises to the same 1–5 scale and only the normalised score travels.
+  </p>
+  <table class="creators rubric-bands">
+    <thead>
+      <tr><th>Platform</th><th>Measured as</th><th>5/5</th><th>4/5</th><th>3/5</th><th>2/5</th></tr>
+    </thead>
+    <tbody>
+      {% for slug, inst in instruments.items() %}
+      <tr>
+        <td class="creator-name">{{ slug|capitalize }}</td>
+        <td class="creator-meta">{{ inst.label }}</td>
+        {% if inst.bands %}
+          {% for floor, score in inst.bands %}<td class="num">&ge;{{ floor }}%</td>{% endfor %}
+        {% else %}
+          <td colspan="4" class="creator-meta">
+            not calibrated — returns <code>NEEDS_CALIBRATION</code> rather than a
+            guessed band
+          </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="note note-flag">
+    <strong>One known mismatch, stated rather than left to be found.</strong>
+    The spec's Dimension 3 ladder is written for an <em>engagement rate</em> — likes and
+    comments over reach. The data this pool carries is a <em>view rate</em>, views over
+    followers, and the code applies the thresholds above to that. They are different
+    measures on different denominators, so the boundaries are more generous in practice
+    than the spec intends and the band saturates: most creators here score 5/5 on it,
+    and a quarter of the total weight does less work than it should. Fixing it needs
+    per-platform follower counts, not a new number in the config, so the ladder is left
+    as the product owner set it and the limitation is published instead.
+  </p>
+
+  {% if rubric %}
+  <h3>The full ladders, as the spec states them</h3>
+  <p class="prose">
+    Printed verbatim from <code>{{ spec.path }}</code> at page load, not retyped, so
+    what you read here cannot drift from the file the scoring is checked against.
+  </p>
+  <pre class="rubric-block">{{ rubric }}</pre>
+  {% endif %}
+</section>
+
 <section class="card">
-  <h2>The rubric itself</h2>
+  <h2>The spec of record</h2>
   <p class="prose">
     Scored against <code>{{ spec.path }}</code>, which is checked into the repository
     and loaded at runtime. The weights in the code and the rubric in the spec are
