@@ -126,6 +126,46 @@ Gates are separate from, and beat, the D3 score:
 ### 5. CPM is calculated from views, not followers
 `avg_views * SPONSOR_DECAY (0.85)` is the reach denominator. Never use follower count.
 
+### 5a. A competitor sponsorship flags. Only a recorded clause drops.
+Changed 2026-09-11 with the product owner's sign-off, because the code was stricter
+than the spec it implements. `creator-campaign-scout.md` is soft on this in all three
+places it appears — Pass 2 says competitor-sponsored creators are "pre-qualified as
+being in the right niche, even if competitor exclusivity makes **some** ineligible",
+its output line says "**flag** any competitor exclusivity", and Step 3 asks whether
+they are "**currently** sponsored by" a rival. The engine dropped them all.
+
+It was also wrong on the merits. A creator a rival has already paid is a *qualified*
+lead: they take sponsorships, they can execute a brief, and their audience tolerates
+paid content in this category. That is the whole premise of Search Pass 2, which exists
+to go and find them.
+
+Note which brands sit in which list — the spec is making a distinction worth keeping.
+Pass 2 audits **adjacent** tools (Notion, Canva, Grammarly) to *source* creators;
+`brief["exclusions"]` names **head-to-head** rivals (Bubble, Glide, Adalo, FlutterFlow,
+Softr). Adjacent is a recruiting ground; head-to-head is worth a second look. Neither is
+a disqualification.
+
+So there are now three distinct signals, and they must not be collapsed:
+
+| Signal | Where it is read | Effect |
+|---|---|---|
+| Rival named in `current_sponsors` | a record of who pays them | **Flag** — check for a clause |
+| Rival named in `notes` | prose about them | **Flag**, worded as a *mention* |
+| `exclusivity` records an active clause | a contract term someone read | **Drop** |
+
+The notes case is the one that proves the rule. On the bundled data the only mention of
+a rival is soojintech's note — *"confirmed Cursor as a brand partner - already
+comfortable sponsoring AI coding tools"* — written by the sourcer as a **reason to want
+them**. The old gate read it as a disqualification and silently removed a 91-point
+creator from the shortlist. Prose does not say what it means: a stale credit, a
+comparison ("much better than Bubble") and a recommendation all look identical to a
+substring match, so notes raise a flag for a person to read and never reject anyone.
+
+`exclusivity` is a recorded judgement, exactly like `readiness` and `brand_safety`:
+absent means nobody checked, never "no clause". `scorer.commercial_flags()` produces the
+warnings, `results.html` renders them per row, and `screening.check_competitor` returns
+the matching verdict so the triage screen and the shortlist cannot disagree.
+
 ### 6. Judgement can be typed. A metric must be sourced.
 The judging screen (`/judge`) lets a human supply the four judged sub-scores and the
 readiness call in the browser instead of hand-editing CSV columns. This does **not**

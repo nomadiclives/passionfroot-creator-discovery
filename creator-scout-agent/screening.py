@@ -154,9 +154,15 @@ def check_deliverable(creator: dict, criteria: dict) -> Check:
 def check_competitor(creator: dict, criteria: dict) -> Check:
     """Currently sponsored by a competitor the brief excludes?
 
-    The honest half of this check is the negative case. An empty sponsor field
-    means nobody sourced their sponsors — not that they have none — so it is
-    UNKNOWN, not PASS. Reading it as PASS would clear a creator of a conflict
+    Two different facts, deliberately kept apart. A rival appearing in the
+    sponsor list is a FLAG — the spec asks for it to be flagged, and a creator a
+    competitor has already paid is a qualified lead rather than a disqualified
+    one. What actually rejects them is an ACTIVE exclusivity clause, recorded by
+    someone who read the terms.
+
+    The honest half of this check is still the negative case. An empty sponsor
+    field means nobody sourced their sponsors — not that they have none — so it
+    is UNKNOWN, not PASS. Reading it as PASS would clear a creator of a conflict
     on the strength of never having looked.
     """
     exclusions = criteria.get("exclusions") or []
@@ -167,11 +173,31 @@ def check_competitor(creator: dict, criteria: dict) -> Check:
             config.BASIS_COMPUTED, blocking=True,
         )
 
+    # An exclusivity clause somebody read is the only thing here that rejects a
+    # creator. A rival's name in the sponsor list is a warning to follow up.
+    clause = scorer.exclusivity_blocks(creator)
+    if clause:
+        return Check(
+            "competitor", "Competitor exclusivity", FAIL,
+            f"under an active exclusivity clause ({clause})",
+            config.BASIS_RECORDED, blocking=True,
+        )
+
     hit = scorer.competitor_hit(creator, exclusions)
     if hit:
         return Check(
-            "competitor", "Competitor exclusivity", FAIL,
-            f"excluded: competitor sponsorship ({hit})",
+            "competitor", "Competitor exclusivity", FLAG,
+            f"sponsored by {hit}, a competitor the brief excludes — check for an "
+            f"exclusivity clause; prior category work is not itself a blocker",
+            config.BASIS_COMPUTED, blocking=True,
+        )
+
+    note_hit = scorer.competitor_note_hit(creator, exclusions)
+    if note_hit:
+        return Check(
+            "competitor", "Competitor exclusivity", FLAG,
+            f"notes mention {note_hit}, a competitor the brief excludes — a "
+            f"mention in prose is not a sponsorship, so read it before deciding",
             config.BASIS_COMPUTED, blocking=True,
         )
 

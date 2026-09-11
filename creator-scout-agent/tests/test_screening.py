@@ -187,14 +187,34 @@ def test_no_known_surface_is_unknown_not_fail(criteria):
     assert report["verdict"] == screening.NEEDS_SCREENING
 
 
-def test_competitor_check_agrees_with_the_scorer_helper(criteria):
+def test_a_competitor_sponsorship_flags_rather_than_fails(criteria):
+    """Matches the scorer: a rival's creator is a lead, not a rejection."""
     creator = make(current_sponsors="Sponsored by Bubble this month")
     report = screening.screen(creator, criteria)
     check = next(c for c in report["checks"] if c["key"] == "competitor")
-    assert check["verdict"] == screening.FAIL
+    assert check["verdict"] == screening.FLAG
     assert scorer.competitor_hit(
         scorer.normalise_creator(creator), criteria["exclusions"]
     ) == "bubble"
+
+
+def test_only_a_recorded_clause_fails_the_competitor_check(criteria):
+    report = screening.screen(
+        make(current_sponsors="Bubble", exclusivity="active until March"), criteria
+    )
+    check = next(c for c in report["checks"] if c["key"] == "competitor")
+    assert check["verdict"] == screening.FAIL
+    assert check["basis"] == config.BASIS_RECORDED
+
+
+def test_a_note_mentioning_a_competitor_flags_more_weakly(criteria):
+    """Prose is not a sponsor record, so it is reported as a mention."""
+    report = screening.screen(
+        make(current_sponsors="", notes="much better than Bubble honestly"), criteria
+    )
+    check = next(c for c in report["checks"] if c["key"] == "competitor")
+    assert check["verdict"] == screening.FLAG
+    assert "not a sponsorship" in check["reason"]
 
 
 # ---------------------------------------------------------------------------
@@ -378,8 +398,12 @@ def test_recording_brand_safety_unblocks_a_row(pool, criteria):
 
     creator["brand_safety"] = "clear"
     after = screening.screen(creator, criteria)
-    assert after["verdict"] != screening.NEEDS_SCREENING
     assert "Brand safety" not in after["open_items"]
+    # Still held, but by a different check now: no row in the bundled data
+    # records `current_sponsors`, so nobody has sourced who pays this creator.
+    # That is the honest answer, and naming which check is holding the row is
+    # the point of open_items.
+    assert after["open_items"] == ["Competitor exclusivity"]
 
 
 # ---------------------------------------------------------------------------

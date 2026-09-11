@@ -218,6 +218,25 @@ FORMAT_CAPABILITIES = {
 # What the Craftly brief actually asks for: 2 original videos + crossposts.
 DEFAULT_DELIVERABLE_FORMATS = ("short_video", "long_video")
 
+# Competitor exclusivity — a FLAG, not a gate, which is what the spec says.
+#
+# `creator-campaign-scout.md` is deliberately soft on this in all three places
+# it comes up: Pass 2 says competitor-sponsored creators are "pre-qualified as
+# being in the right niche, even if competitor exclusivity makes SOME
+# ineligible"; its output line says "FLAG any competitor exclusivity"; and the
+# Step 3 check asks whether they are "CURRENTLY sponsored by" a rival.
+#
+# This app used to drop them outright, which was stricter than its own spec and
+# wrong on the merits. A creator a rival has paid is a qualified lead: they take
+# sponsorships, they can run a brief, and their audience tolerates paid content
+# in this category. Changed 2026-09-11 with the product owner's sign-off.
+#
+# What genuinely blocks a deal is an ACTIVE exclusivity clause — a contract
+# term, time-boxed and category-scoped. That is a fact somebody records, never
+# something inferred from a brand name appearing in free text.
+EXCLUSIVITY_ACTIVE = ("active", "exclusive", "exclusivity", "locked", "committed")
+EXCLUSIVITY_CLEAR = ("expired", "ended", "none", "no", "lapsed", "free")
+
 
 # --------------------------------------------------------------------------
 # Step 3 screening — the triage vocabulary and thresholds.

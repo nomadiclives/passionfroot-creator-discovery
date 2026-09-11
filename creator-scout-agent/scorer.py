@@ -249,6 +249,10 @@ def normalise_creator(row: dict) -> dict:
         # than passing the check — see its module docstring.
         "brand_safety": _text(row.get("brand_safety")).lower().strip(),
         "growth_pattern": _text(row.get("growth_pattern")).lower().strip(),
+        # An ACTIVE competitor exclusivity clause — the only thing in this area
+        # that actually blocks a deal. A contract term somebody read and
+        # recorded, never inferred from a rival's name turning up in a note.
+        "exclusivity": _text(row.get("exclusivity")).lower().strip(),
         # Non-scored publishing surfaces (newsletter, podcast) still matter to
         # the deliverable gate.
         "other_surfaces": _text(row.get("other_surfaces")),
@@ -579,6 +583,9 @@ def _unscored(creator, criteria, status, reason, notes=None) -> dict:
         "evidence": list(notes or []),
         "cpm": cpm_estimate(creator, criteria),
         "eligible": False,
+        # A creator the engine will not score can still carry a warning worth
+        # seeing — the gap and the conflict are separate facts.
+        "flags": commercial_flags(creator, criteria),
     }
 
 
@@ -725,6 +732,7 @@ def score_creator(creator: dict, criteria: dict) -> dict:
             "evidence": d1_notes + d2_notes + d3_notes + d4_notes + d5_notes,
             "cpm": cpm_estimate(creator, criteria),
             "eligible": eligible,
+            "flags": commercial_flags(creator, criteria),
         }
     )
     return result
@@ -733,14 +741,26 @@ def score_creator(creator: dict, criteria: dict) -> dict:
 def competitor_sponsor_text(creator: dict) -> str:
     """The text a competitor-sponsorship check reads, lowercased.
 
-    Sponsors are recorded free-text, sometimes in `current_sponsors` and
-    sometimes only mentioned in `notes`, so both are searched. Empty means
-    nothing was ever sourced about this creator's sponsors — which is NOT the
-    same as "no competitor sponsors", and screening.py reports the difference.
+    Reads `current_sponsors` — the field that is actually a record of who pays
+    this creator. Empty means nobody sourced their sponsors, which is NOT the
+    same as "no competitor sponsors"; screening.py reports the difference.
     """
-    return " ".join(
-        [creator.get("current_sponsors", "") or "", creator.get("notes", "") or ""]
-    ).lower()
+    return (creator.get("current_sponsors", "") or "").lower()
+
+
+def competitor_note_text(creator: dict) -> str:
+    """Free-text notes, searched separately and believed less.
+
+    Sponsors get mentioned in prose all the time, and prose does not say what
+    it means: "did a Bubble video back in 2023", "much better than Bubble", and
+    "confirmed Cursor as a brand partner - already comfortable sponsoring AI
+    coding tools" are a stale credit, a comparison, and a recommendation. The
+    engine used to read all three as a live conflict and drop the creator.
+
+    So a note still raises a flag — a person should look — but it is reported as
+    a mention rather than as a sponsorship, and it never rejects anyone.
+    """
+    return (creator.get("notes", "") or "").lower()
 
 
 def competitor_hit(creator: dict, exclusions: Iterable[str]) -> str:
@@ -749,12 +769,67 @@ def competitor_hit(creator: dict, exclusions: Iterable[str]) -> str:
     Returns the matching term, or "" for no match. Shared with screening.py so
     the triage screen and the scorer's Drop reason can never disagree.
     """
-    haystack = competitor_sponsor_text(creator)
+    return _first_match(competitor_sponsor_text(creator), exclusions)
+
+
+def competitor_note_hit(creator: dict, exclusions: Iterable[str]) -> str:
+    """The first excluded competitor merely MENTIONED in a creator's notes."""
+    return _first_match(competitor_note_text(creator), exclusions)
+
+
+def _first_match(haystack: str, exclusions: Iterable[str]) -> str:
     for term in exclusions or ():
         term = str(term).lower().strip()
         if term and term in haystack:
             return term
     return ""
+
+
+def exclusivity_blocks(creator: dict) -> str:
+    """An active exclusivity clause, or "" when nothing blocks.
+
+    This is the only competitor-related fact that removes a creator from a
+    campaign, and it has to be recorded by a person who checked. Working with a
+    rival once is not a clause; "sponsored by Bubble" in a sponsor list is not a
+    clause. Somebody has to have read the terms.
+    """
+    value = _text(creator.get("exclusivity")).lower().strip()
+    if not value:
+        return ""
+    if any(token in value for token in config.EXCLUSIVITY_CLEAR):
+        return ""
+    if any(token in value for token in config.EXCLUSIVITY_ACTIVE):
+        return value
+    return ""
+
+
+def commercial_flags(creator: dict, criteria: dict) -> list[str]:
+    """Warnings that travel WITH a creator rather than removing them.
+
+    A competitor sponsorship belongs here. The spec calls for it to be flagged,
+    and a flag keeps the creator on the shortlist where a person can weigh them
+    — which is the right call, because a creator a rival has already paid is a
+    qualified lead, not a disqualified one.
+    """
+    exclusions = criteria.get("exclusions", [])
+    flags: list[str] = []
+
+    hit = competitor_hit(creator, exclusions)
+    if hit:
+        flags.append(
+            f"Sponsored by {hit} — a competitor the brief excludes. Check for an "
+            f"exclusivity clause before outreach; prior category work is not "
+            f"itself a blocker."
+        )
+    else:
+        note_hit = competitor_note_hit(creator, exclusions)
+        if note_hit:
+            flags.append(
+                f"Notes mention {note_hit}, a competitor the brief excludes — "
+                f"read them before outreach. A mention in prose is not a "
+                f"sponsorship and may be stale or a comparison."
+            )
+    return flags
 
 
 def can_deliver(creator: dict, criteria: dict) -> tuple[bool, str]:
@@ -792,9 +867,12 @@ def _status_for(creator, criteria, eligible, score_100, engagement_notes) -> tup
     if not deliverable_ok:
         return STATUS_DROP, deliverable_reason
 
-    hit = competitor_hit(creator, criteria.get("exclusions", []))
-    if hit:
-        return STATUS_DROP, f"excluded: competitor sponsorship ({hit})"
+    # A competitor sponsorship FLAGS (see commercial_flags) and no longer drops:
+    # the spec says to flag it, and a rival's creator is a qualified lead. Only
+    # an exclusivity clause somebody actually read removes them.
+    clause = exclusivity_blocks(creator)
+    if clause:
+        return STATUS_DROP, f"under an active exclusivity clause ({clause})"
 
     if not any(p in criteria["platforms"] for p in creator.get("platforms", [])):
         return STATUS_DROP, "not active on a briefed platform"

@@ -218,10 +218,59 @@ def test_authenticity_gate_beats_a_good_score():
     assert "inauthentic" in creator["status_reason"]
 
 
-def test_exclusions_drop_a_creator():
+def test_a_competitor_sponsorship_flags_rather_than_drops():
+    """Changed 2026-09-11. The spec says FLAG; this used to DROP.
+
+    soojintech is the case that shows why it mattered. The only mention of a
+    rival on that row is a NOTE reading "confirmed Cursor as a brand partner -
+    already comfortable sponsoring AI coding tools" — written by the sourcer as
+    a reason to want them. The engine read it as a disqualification and removed
+    a top-10 creator from the shortlist.
+    """
     brief = {**config.DEFAULT_BRIEF, "exclusions": "Cursor"}
     result = scorer.build_shortlist(brief, config.CREATOR_DATA)
-    assert by_name(result, "soojintech")["status"] == scorer.STATUS_DROP
+    creator = by_name(result, "soojintech")
+
+    assert creator["status"] == scorer.STATUS_KEEP
+    assert any("Cursor" in flag or "cursor" in flag for flag in creator["flags"])
+
+
+def test_only_a_recorded_exclusivity_clause_drops_a_creator():
+    """A contract term somebody read — never inferred from a brand name."""
+    base = {
+        "name": "Clause Holder",
+        "platform": "TikTok",
+        "followers": 100_000,
+        "resonance_rate": 20.0,
+        "audience_match_score": 4,
+        "content_match_score": 4,
+        "geo_match_score": 4,
+        "commercial_maturity_score": 4,
+        "readiness": "adopted",
+        "readiness_category": config.DEFAULT_BRIEF["category"],
+        "current_sponsors": "Bubble",
+    }
+    kept = scorer.build_shortlist(config.DEFAULT_BRIEF, [dict(base)])
+    assert kept["shortlist"], "a competitor sponsorship alone must not drop"
+
+    blocked = scorer.build_shortlist(
+        config.DEFAULT_BRIEF, [{**base, "exclusivity": "active until March"}]
+    )
+    assert blocked["dropped"]
+    assert "exclusivity" in blocked["dropped"][0]["status_reason"]
+
+
+def test_an_expired_clause_does_not_drop():
+    creator = {
+        "name": "Expired", "platform": "TikTok", "followers": 100_000,
+        "resonance_rate": 20.0, "audience_match_score": 4,
+        "content_match_score": 4, "geo_match_score": 4,
+        "commercial_maturity_score": 4, "readiness": "adopted",
+        "readiness_category": config.DEFAULT_BRIEF["category"],
+        "current_sponsors": "Bubble", "exclusivity": "expired",
+    }
+    result = scorer.build_shortlist(config.DEFAULT_BRIEF, [creator])
+    assert result["shortlist"]
 
 
 # ---------------------------------------------------------------------------
