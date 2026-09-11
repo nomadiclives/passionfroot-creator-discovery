@@ -147,7 +147,7 @@ shortlist to keep a result.
 
 ## Data
 
-`data/creators.json` holds 20 creators sourced from the product owner's sheet plus a
+`data/creators.json` holds 21 creators sourced from the product owner's sheet plus a
 5-creator LinkedIn cohort with no metrics yet. Every row records `source`,
 `sourced_from` and `sourced_date`, and three rows are marked
 `rate_reproducible: false` — the rate is real, but it cannot be recomputed from the

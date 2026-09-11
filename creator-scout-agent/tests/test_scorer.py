@@ -350,13 +350,15 @@ def test_readiness_does_not_transfer_to_a_different_category():
 def test_readiness_transfers_when_the_category_matches():
     """The guard must not fire on the campaign the pool was judged for."""
     result = build()
-    assert result["counts"]["shortlisted"] == 17
+    # 18 = every bundled creator judged against this category and not gated.
+    # Grows when the pool does; it last changed when Dylan OTT was added.
+    assert result["counts"]["shortlisted"] == 18
     assert by_name(result, "Roberto Nickson")["role"] == scorer.ROLE_CREDIBILITY
 
 
 def test_category_match_ignores_case_and_padding():
     result = build({**config.DEFAULT_BRIEF, "category": "  AI App-Building Tools "})
-    assert result["counts"]["shortlisted"] == 17
+    assert result["counts"]["shortlisted"] == 18
 
 
 def test_untagged_readiness_still_scores():
@@ -371,7 +373,7 @@ def test_untagged_readiness_still_scores():
     result = scorer.build_shortlist(
         {**config.DEFAULT_BRIEF, "category": "anything at all"}, rows
     )
-    assert result["counts"]["shortlisted"] == 17
+    assert result["counts"]["shortlisted"] == 18
 
 
 def test_every_readiness_judgement_in_the_data_records_its_category():

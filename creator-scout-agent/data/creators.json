@@ -480,6 +480,28 @@
       "avg_views": 149000
     },
     {
+      "source": "manual",
+      "sourced_from": "Google Sheet: Creator Sheet for Craftly",
+      "sourced_date": "2026-09-11",
+      "name": "Dylan OTT",
+      "platform": "TikTok, YouTube",
+      "location": "US",
+      "followers": 80000,
+      "resonance_rate": 141.25,
+      "avg_views": 113000,
+      "audience_match_score": 5,
+      "content_match_score": 3.5,
+      "geo_match_score": 5,
+      "commercial_maturity_score": 5,
+      "readiness": "unexposed",
+      "readiness_category": "AI app-building tools",
+      "comment_quality": "substantive",
+      "notes": "Content is college advice and student life but he has genuine AI/builder credibility - built Kolly (70K+ student users), currently founding an AI startup in SF, and has existing brand deals with Microsoft and Nvidia. Audience is overwhelmingly high school and university-age US students aspiring to elite universities - Craftly's exact demographic. Strong Awareness candidate with an unusually credible hook: he's not just a student talking about tools, he's a student who builds them. Follower band should be corrected to 50-100k. CPM model @$50 makes him affordable.",
+      "sheet_outreach_angle": "You content revolves around solving real problems for students - Craftly is the same story from another direction, and your audience of aspiring builders is exactly who needs to hear it. A video of you building something with Craftly in an afternoon would land very well given all the college advice content you make.",
+      "search_source": "Modash",
+      "rate_reproducible": true
+    },
+    {
       "name": "Lara Acosta",
       "platform": "LinkedIn",
       "location": "",

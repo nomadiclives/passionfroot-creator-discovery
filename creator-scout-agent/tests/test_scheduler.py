@@ -215,11 +215,11 @@ def test_a_campaign_in_an_unjudged_category_yields_review_not_invented_roles(
     by_id = {c["id"]: c for c in summary["campaigns"]}
 
     craftly = by_id["craftly-students"]
-    assert craftly["shortlisted"] == 17
+    assert craftly["shortlisted"] == 18
 
     hardware = by_id["fixture-other-category"]
     assert hardware["shortlisted"] == 0
-    assert hardware["needs_review"] == 18, (
+    assert hardware["needs_review"] == 19, (
         "a different category must return the pool for re-judgement rather than "
         "reusing readiness judged against AI app-building tools"
     )

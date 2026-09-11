@@ -24,10 +24,10 @@ it is the single most likely thing to be mistaken for a bug.
 | Spec loader | `agent_spec.py` | ✅ parses campaign slot, hard rules, guards weight drift |
 | Campaign config | `config.py` | ✅ weights locked, **instruments**, gates, readiness roles |
 | Scoring engine | `scorer.py` | ✅ 5 dimensions, instrument-based D3, gates, readiness roles |
-| **Real creator data** | `data/creators.json` | ✅ 20 sourced creators + 5 LinkedIn calibration cohort |
+| **Real creator data** | `data/creators.json` | ✅ 21 sourced creators + 5 LinkedIn calibration cohort |
 | Flask API + UI | `app.py` | ✅ both screens, CSV export, schedule console, JSON surfaces |
 | Screen 1 — brief | `templates/index.html` | ✅ every field; verified in a real browser |
-| Screen 2 — shortlist | `templates/results.html` | ✅ all 25 rows, all five statuses, provenance |
+| Screen 2 — shortlist | `templates/results.html` | ✅ all 26 rows, all five statuses, provenance |
 | Schedule console | `templates/schedule.html` | ✅ cadence, last/next run, Run Now, pipeline |
 | Stylesheet | `static/styles.css` | ✅ plain CSS, no framework |
 | Scheduler | `scheduler.py` | ✅ `--once` and blocking loop; writes dated soft rosters |
@@ -104,7 +104,13 @@ exposure without adoption. That is a real finding about the pool, not a bug.
 reproduces_the_hand_scored_sheet`). The app agrees with expert judgement and adds gates
 on top — it does not quietly re-rank.
 
-The one divergence is **Roberto Nickson**, and it is the sheet's slip, not the engine's:
+**Dylan OTT, added 2026-09-11, is a second instance of the same slip.** His view rate
+is 141.25% — far above the ladder's 8% top band — so the engine scores D3 5/5 and returns
+4.625, where the sheet records a 4 and a total of 4.38. Same cause, same resolution: the
+engine applies the ladder the sheet states. Two of twenty-two rows now disagree with
+their own stated rule, which is worth knowing before the ladder is refitted.
+
+The first divergence is **Roberto Nickson**, and it is the sheet's slip, not the engine's:
 his 24.66% view rate scores 5/5 under the sheet's own ladder (anything above 8%), but the
 sheet records 4. The engine applies the stated rule, giving 4.15 rather than 3.90.
 Recorded in `test_roberto_nickson_is_the_one_sheet_row_that_breaks_its_own_ladder`.
@@ -186,7 +192,7 @@ Flask test client, which proves routes answer but not that pages render):
 
 1. `python app.py` starts without errors — **verified**
 2. `localhost:5000` renders Screen 1 with all fields — **verified**, 13 inputs present
-3. Form submit renders Screen 2 with a scored table — **verified**, 25 rows, 17 shortlisted
+3. Form submit renders Screen 2 with a scored table — **verified**, 26 rows, 18 shortlisted
 4. Weighted scores correct for 3+ creators — **verified** via pytest, and 16/17 reproduce
    the hand-scored sheet exactly
 5. Export to CSV downloads a valid file — **verified**, `attachment` header, 26 lines
