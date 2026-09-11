@@ -17,17 +17,42 @@
   </div>
 </section>
 
+<div class="wip">
+  <strong>Nothing here fires on its own. The cadence is a saved setting, not a running timer.</strong>
+  <p>
+    <strong>Run now works</strong> — it runs the whole pipeline immediately and writes a
+    dated roster you can read below. That part is real, and it is the quickest way to see
+    what this produces.
+  </p>
+  <p>
+    <strong>The cadence and “next run” are not.</strong> The repeating loop lives in
+    <code>scheduler.py</code>, which has to be running as its own process. The web app
+    never starts one, so the date below is arithmetic rather than a promise. On the hosted
+    version there is no such process at all — the deployment defines a single web service,
+    and a free instance sleeps when idle, so a timed run would not survive the night even
+    if one existed.
+  </p>
+  <p>
+    To have it genuinely run on a cadence: <code>python scheduler.py</code> alongside the
+    app, or a worker or cron job on a paid plan. Until then this page is a console for a
+    scheduler that is only ever run by hand, and saying so seemed better than showing a
+    next-run date nobody is keeping.
+  </p>
+</div>
+
 <section class="guide">
   <h2>What this page is for</h2>
   <p>
     Building a shortlist by hand takes days, and briefs usually arrive with less notice
-    than that. This page runs the whole pipeline on a repeating schedule against the
-    campaigns you know are coming, so a rough shortlist already exists on the day a brief
-    is signed rather than starting from nothing.
+    than that. The idea is that the whole pipeline runs against the campaigns you know are
+    coming, so a rough shortlist already exists on the day a brief is signed rather than
+    starting from nothing. The pipeline and the run are built and work; what is missing is
+    anything to trigger them on a clock — see above.
   </p>
   <ol class="guide-steps">
-    <li><strong>Cadence</strong> sets how often that happens. <strong>Run now</strong>
-      does one immediately, which is the quickest way to see what this produces.</li>
+    <li><strong>Cadence</strong> records how often that <em>should</em> happen and drives
+      the next-run arithmetic. <strong>Run now</strong> does one immediately, and is the
+      only thing on this page that actually starts a run.</li>
     <li><strong>Pipeline</strong> is the list of upcoming campaigns it runs for. It is
       edited in a file, not here.</li>
     <li><strong>Last run</strong> reports how each campaign came out. A high
@@ -60,7 +85,11 @@
       <dt>Run time</dt><dd>{{ state.run_time }}</dd>
       <dt>Last run</dt>
       <dd>{{ state.last_run or "never" }}{% if state.last_status %} ({{ state.last_status }}){% endif %}</dd>
-      <dt>Next run</dt><dd>{{ state.next_run }}</dd>
+      <dt>Next run</dt>
+      <dd>
+        {{ state.next_run }}
+        <span class="tag tag-warn" title="Nothing is scheduled to fire at this time. It is when a run would be due if scheduler.py were running.">if run by hand</span>
+      </dd>
       <dt>Last report</dt>
       <dd>{% if state.last_report %}<code>{{ state.last_report }}</code>{% else %}—{% endif %}</dd>
     </dl>
