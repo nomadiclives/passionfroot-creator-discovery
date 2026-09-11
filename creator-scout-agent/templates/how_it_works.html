@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}How it works — Creator Campaign Scout{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>How this works</h1>
+  <p class="lede">
+    What the tool does, what it deliberately refuses to do, and where a human is
+    still doing the work. Everything on this page is read from the live
+    configuration, so it cannot drift from the model actually being applied.
+  </p>
+</section>
+
+<section class="card">
+  <h2>In one line</h2>
+  <p class="prose">
+    You give it a campaign brief and a list of creators; it scores them against a
+    fixed rubric, assigns each a role in the campaign, and returns a ranked
+    shortlist. <strong>It is the evaluation half of creator sourcing, not the
+    finding half.</strong>
+  </p>
+</section>
+
+<section class="card">
+  <h2>The flow, and who does what</h2>
+  <table class="flow">
+    <thead>
+      <tr><th>Step</th><th>Who does it today</th><th>Where it should end up</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Source creators</strong></td>
+        <td class="who who-human">Human</td>
+        <td>Agent proposes candidates, human curates</td>
+      </tr>
+      <tr>
+        <td><strong>Gather metrics</strong></td>
+        <td class="who who-human">Human</td>
+        <td>Pulled from a creator-data API</td>
+      </tr>
+      <tr>
+        <td><strong>Judge the four soft dimensions</strong></td>
+        <td class="who who-human">Human</td>
+        <td>Agent proposes with evidence, human confirms or overrides</td>
+      </tr>
+      <tr>
+        <td><strong>Apply weights and gates</strong></td>
+        <td class="who who-machine">Machine</td>
+        <td>Unchanged — this stays deterministic on purpose</td>
+      </tr>
+      <tr>
+        <td><strong>Assign campaign role</strong></td>
+        <td class="who who-machine">Machine</td>
+        <td>Unchanged</td>
+      </tr>
+      <tr>
+        <td><strong>Approve the shortlist</strong></td>
+        <td class="who who-human">Human</td>
+        <td>Stays human. Always.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="help">
+    The direction of travel is that the machine makes the first pass and the human
+    spends their attention on the genuinely ambiguous calls — not that the machine
+    replaces the judgement.
+  </p>
+</section>
+
+<section class="card">
+  <h2>The scoring model</h2>
+  <p class="prose">
+    Five dimensions, each scored 1–5, combined under fixed weights. The weights are
+    locked to the campaign spec and guarded by tests — they cannot be changed by
+    accident, and they do not learn from feedback. They are strategy, set by a human.
+  </p>
+  <table class="weights">
+    <thead>
+      <tr><th>Dimension</th><th>Weight</th><th>Where the score comes from</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Audience match</td><td>{{ (weights.audience_match * 100)|round|int }}%</td>
+        <td class="who who-human">Human judgement</td>
+      </tr>
+      <tr>
+        <td>Content match</td><td>{{ (weights.content_match * 100)|round|int }}%</td>
+        <td class="who who-human">Human judgement</td>
+      </tr>
+      <tr>
+        <td>Resonance</td><td>{{ (weights.engagement_score * 100)|round|int }}%</td>
+        <td class="who who-machine">Calculated from data</td>
+      </tr>
+      <tr>
+        <td>Geo match</td><td>{{ (weights.geo_score * 100)|round|int }}%</td>
+        <td class="who who-human">Human judgement</td>
+      </tr>
+      <tr>
+        <td>Commercial maturity</td><td>{{ (weights.commercial_maturity * 100)|round|int }}%</td>
+        <td class="who who-human">Human judgement</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="help">
+    Four of the five are entered by a person. That is the honest position today, and
+    it is the single biggest cost of using this tool.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Campaign role is not the same as rank</h2>
+  <p class="prose">
+    Role answers <em>what job does this creator do in the campaign</em>, and comes
+    from how ready their audience is for your product category — never from their
+    score. A top-ranked creator can still be an awareness play.
+  </p>
+  <ul class="plain">
+    {% for readiness, role in readiness_roles.items() %}
+    <li>
+      <code>{{ readiness }}</code> → <span class="tag tag-{{ role_colours[role] }}">{{ role }}</span>
+      {% if readiness == 'unexposed' %}audience has little exposure to the category
+      {% elif readiness == 'exposed' %}audience consumes category content, adoption unproven
+      {% else %}audience demonstrably uses the category{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="help">
+    A readiness call is evidence about <strong>one named category</strong>. It does not
+    transfer to a brief about something else — judge the pool again instead.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Why it refuses instead of guessing</h2>
+  <p class="prose">
+    A shortlist with honest gaps is more useful than a clean one with invented
+    numbers. Every creator evaluated stays on screen with its reason; nothing is
+    quietly dropped, because a row that disappears looks identical to a creator
+    nobody sourced.
+  </p>
+  <table class="statuses">
+    <thead><tr><th>Status</th><th>Meaning</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tag-green">Keep</span></td>
+        <td>Scored and shortlisted</td><td>Take it to outreach</td></tr>
+      <tr><td><span class="tag tag-red">Drop</span></td>
+        <td>Failed a gate or an exclusion</td><td>Read the reason; usually final</td></tr>
+      <tr><td><span class="tag tag-warn">NEEDS_REFRESH</span></td>
+        <td>A required metric is missing</td><td>Source it — never estimate it</td></tr>
+      <tr><td><span class="tag tag-warn">NEEDS_REVIEW</span></td>
+        <td>A human judgement is missing, or was made about a different category</td>
+        <td>Judge it on the Judge screen</td></tr>
+      <tr><td><span class="tag tag-warn">NEEDS_CALIBRATION</span></td>
+        <td>That platform's scoring bands have not been fitted</td>
+        <td>Collect real rates for it and fit bands</td></tr>
+    </tbody>
+  </table>
+  <p class="help">
+    An empty shortlist is often the correct answer rather than a bug — most commonly
+    when the brief names a category the pool was never judged against.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Gates run before scoring, and override it</h2>
+  <p class="prose">
+    A creator can score well and still be dropped. Engagement below the platform
+    floor, a competitor exclusion, the wrong follower band, or no presence on a
+    briefed platform all remove a creator regardless of how they score elsewhere.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Strengths</h2>
+  <ul class="plain">
+    <li><strong>Reproducible.</strong> The same brief and pool give the same ranking
+      every time. No gut-feel re-ordering between sessions.</li>
+    <li><strong>Auditable.</strong> Every score breaks down by dimension, and every
+      metric carries its source and the date it was sourced.</li>
+    <li><strong>Corroborated.</strong> The engine reproduces 16 of 17 hand-scored rows
+      from the product owner's sheet. The one divergence is the sheet applying its own
+      ladder inconsistently — pinned in a test rather than papered over.</li>
+    <li><strong>Honest about gaps.</strong> The refusal states above are the point of
+      the tool, not a limitation of it.</li>
+  </ul>
+</section>
+
+<section class="card card-warn">
+  <h2>Limitations — read these before trusting a shortlist</h2>
+  <ul class="plain">
+    <li><strong>It cannot find creators.</strong> No search, no scraping. You bring the
+      list; the Discover screen gives you searches to run by hand.</li>
+    <li><strong>It does not verify a single number.</strong> Every metric is whatever was
+      entered. The connection to creator-data providers exists but has never made a
+      live call.</li>
+    <li><strong>It does not form judgements.</strong> Four of five dimensions are typed in
+      by a person. The tool applies them consistently; it does not have a view.</li>
+    <li><strong>Outreach angles are templates.</strong> Three pre-written lines keyed to
+      role, with the brand name inserted. Every creator in a role gets the same line.
+      This is a placeholder, not copy.</li>
+    <li><strong>The resonance ladder saturates.</strong>
+      {% for slug, inst in instruments.items() %}{% if inst.calibration and 'saturating' in inst.calibration %}{{ slug|capitalize }}{{ ", " if not loop.last }}{% endif %}{% endfor %}
+      use a rate ladder fed view-rate data, so most creators cluster at the top. The
+      real fix needs per-platform follower counts, not new bands.</li>
+    <li><strong>Not every platform is calibrated.</strong>
+      {% for slug, inst in instruments.items() %}{% if not inst.bands %}{{ slug|capitalize }} has no fitted bands and returns NEEDS_CALIBRATION.{% endif %}{% endfor %}</li>
+    <li><strong>No authentication.</strong> Anyone with the link sees the full shortlist,
+      including commercial notes on named creators.</li>
+    <li><strong>Nothing it writes survives.</strong> Uploaded lists expire after
+      {{ retention_hours }} hours, and generated reports reset on every restart.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Dependencies — what is blocked on what</h2>
+  <table class="deps">
+    <thead><tr><th>Capability</th><th>State</th><th>What it needs</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Verified follower counts and engagement rates</td>
+        <td><span class="tag tag-warn">Wired, never called</span></td>
+        <td>A Favikon or Modash API key</td>
+      </tr>
+      <tr>
+        <td>Discovering creators from a brief</td>
+        <td><span class="tag tag-warn">Wired, never called</span></td>
+        <td>A YouTube API key (free tier) for the first pass; paid provider search for scale</td>
+      </tr>
+      <tr>
+        <td>Machine-proposed judgements</td>
+        <td><span class="tag tag-red">Not built</span></td>
+        <td>Content ingestion first — the tool cannot judge what it cannot see</td>
+      </tr>
+      <tr>
+        <td>Per-creator outreach copy</td>
+        <td><span class="tag tag-red">Not built</span></td>
+        <td>Nothing external. This is work, not access.</td>
+      </tr>
+      <tr>
+        <td>Scheduled runs firing on their own</td>
+        <td><span class="tag tag-warn">Manual only</span></td>
+        <td>A background worker or cron; the free hosting tier has neither</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Where this is going</h2>
+  <p class="prose">
+    The intended design is a loop: the agent sources candidates and proposes
+    judgements with evidence; a human reviews and corrects; those corrections are
+    stored and fed back as worked examples so the next pass is closer; the machine
+    applies the weights and proposes a shortlist; the human approves.
+  </p>
+  <p class="prose">
+    Two rules hold that loop honest. <strong>The weights never learn</strong> — strategy
+    stays human-set, or the shortlist stops being defensible. And
+    <strong>agreement rate is the measure</strong>: the share of proposed judgements a
+    human accepts unchanged is how you tell the loop is working rather than merely
+    feeling like it is.
+  </p>
+</section>
+
+<section class="card">
+  <h2>The rubric itself</h2>
+  <p class="prose">
+    Scored against <code>{{ spec.path }}</code>, which is checked into the repository
+    and loaded at runtime. The weights in the code and the rubric in the spec are
+    cross-checked on every test run; they currently
+    {% if spec.weights_match_spec %}<strong>agree</strong>{% else %}<strong class="mismatch">disagree — the scores on screen are not the documented model</strong>{% endif %}.
+  </p>
+  {% if spec.hard_rules %}
+  <details>
+    <summary>The hard rules this tool is built to obey</summary>
+    <ul class="plain rules">
+      {% for rule in spec.hard_rules %}<li>{{ rule|inline_md }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

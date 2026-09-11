@@ -508,3 +508,28 @@ input[type="file"] {
   min-width: 4.6rem;
 }
 .query-term { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
+
+
+/* How it works — the one-pager */
+.prose { max-width: 70ch; line-height: 1.6; }
+ul.plain { max-width: 78ch; line-height: 1.6; padding-left: 1.1rem; }
+ul.plain li { margin-bottom: 0.5rem; }
+ul.rules li { color: var(--ink-soft); }
+table.flow, table.weights, table.statuses, table.deps {
+  width: 100%; border-collapse: collapse; margin: 0.75rem 0;
+}
+table.flow th, table.weights th, table.statuses th, table.deps th,
+table.flow td, table.weights td, table.statuses td, table.deps td {
+  text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+table.flow th, table.weights th, table.statuses th, table.deps th {
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-faint);
+}
+.who { font-weight: 600; white-space: nowrap; }
+.who-human { color: var(--orange); }
+.who-machine { color: var(--blue); }
+.card-warn { border-left: 4px solid var(--amber); }
+.mismatch { color: var(--red); }
+details summary { cursor: pointer; color: var(--accent); margin-top: 0.5rem; }

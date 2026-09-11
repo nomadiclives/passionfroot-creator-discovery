@@ -159,6 +159,25 @@ def index():
     )
 
 
+@app.get("/how-it-works")
+def how_it_works():
+    """The one-pager: the model's logic, what it refuses, and what it depends on.
+
+    Rendered from live config rather than prose so the page cannot drift from the
+    model actually being applied — a stale explanation of a scoring model is worse
+    than none, because it is believed.
+    """
+    return render_template(
+        "how_it_works.html",
+        spec=agent_spec.summary(),
+        weights=config.SCORING_WEIGHTS,
+        instruments=config.INSTRUMENTS,
+        readiness_roles=config.READINESS_ROLES,
+        role_colours=config.ROLE_COLOURS,
+        retention_hours=config.UPLOAD_RETENTION_HOURS,
+    )
+
+
 @app.get("/creator-template.csv")
 def creator_template():
     """A blank row with every column the engine reads, so an upload can be filled in."""

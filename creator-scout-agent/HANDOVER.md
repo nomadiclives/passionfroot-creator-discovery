@@ -457,6 +457,27 @@ not a call to make unattended. The options:
 rule change; A is the better product but deserves a deliberate decision about the wording
 in `CLAUDE.md`, not an inference from a night's work.
 
+## The one-pager (`/how-it-works`)
+
+An in-app explanation of the model: the flow and who does each step, the five
+weighted dimensions, role assignment, the refusal states, strengths, limitations
+and dependencies. Linked from the top nav on every screen.
+
+**It renders from live config, not prose.** Weights, instruments, calibration state,
+readiness→role mapping, upload retention and the spec-agreement check are all read
+from `config.py` and `agent_spec.summary()` at request time. A stale explanation of
+a scoring model is worse than none, because people believe it — so the page cannot
+drift from the model actually applied. If a weight changes, the page changes.
+
+Two things it states plainly and should keep stating: four of the five dimensions
+are human-entered, and outreach angles are three templates rather than generated
+copy. If either becomes untrue, update the page in the same commit.
+
+Verified rendering at 200 with the live weights (30/25/25/10/10), LinkedIn named as
+uncalibrated, and the spec-agreement line reading "agree". No test covers this page.
+
+---
+
 ## Still open
 
 Nothing here blocks running the app, and the app is deployed.
