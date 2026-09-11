@@ -345,6 +345,14 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 .rubric-bands th:first-child, .rubric-bands td:first-child { padding-left: 0; }
 .rubric-bands td.num { font-variant-numeric: tabular-nums; }
 .rubric-bands td.band-none { color: var(--ink-faint); }
+/* The verdict and its reason on one line, so the column answers its own
+   heading instead of naming a symptom. */
+/* Deliberately NOT .creator-meta: that class clips at 22ch with an ellipsis,
+   which is right for provenance strings on the shortlist and wrong for a
+   verdict that has to be read in full. */
+.rubric-bands td.ranks { white-space: nowrap; font-size: 13px; }
+.ranks-why { margin-left: 7px; color: var(--ink-faint); font-size: 12.5px; }
+.tag-good { background: var(--green-soft); color: var(--green); }
 #rubric h3 { margin-top: 22px; font-size: 15px; }
 #rubric h3:first-of-type { margin-top: 10px; }
 

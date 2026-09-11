@@ -296,13 +296,14 @@
     TikTok and a 30% interaction rate on LinkedIn are different events, so each
     instrument normalises to the same 1–5 scale and only the normalised score travels.
   </p>
+  <div class="table-scroll">
   <table class="creators rubric-bands">
     <thead>
       <tr>
         <th>Platform</th><th>Measured as</th>
         <th class="num">5/5</th><th class="num">4/5</th>
         <th class="num">3/5</th><th class="num">2/5</th>
-        <th>Fitted?</th>
+        <th>Does it rank?</th>
       </tr>
     </thead>
     <tbody>
@@ -315,19 +316,27 @@
         {% else %}
           {% for _ in range(4) %}<td class="num band-none">&mdash;</td>{% endfor %}
         {% endif %}
-        <td class="creator-meta">
+        {# The column answers one question: does this ladder actually tell
+           creators apart, or does everyone land in the same band? The config
+           values it reads (owner-ladder-known-saturating, sheet-derived,
+           uncalibrated) are how the codebase says it, not how a reader asks. #}
+        <td class="ranks">
           {% if 'saturating' in inst.calibration %}
-            <span class="tag tag-warn">saturates</span>
+            <span class="tag tag-warn">No</span>
+            <span class="ranks-why">everyone clears the top band</span>
           {% elif inst.calibration == 'uncalibrated' %}
-            <span class="tag tag-quiet">not calibrated</span>
+            <span class="tag tag-quiet">Not scored</span>
+            <span class="ranks-why">no bands fitted</span>
           {% else %}
-            fitted to real data
+            <span class="tag tag-good">Yes</span>
+            <span class="ranks-why">bands fitted to real view-rate data</span>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <p class="note">
     A dash means no bands have been fitted for that instrument, so Dimension 3 returns
     <code>NEEDS_CALIBRATION</code> for those creators rather than inventing a boundary to
