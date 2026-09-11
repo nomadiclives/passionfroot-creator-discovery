@@ -121,13 +121,41 @@ his 24.66% view rate scores 5/5 under the sheet's own ladder (anything above 8%)
 sheet records 4. The engine applies the stated rule, giving 4.15 rather than 3.90.
 Recorded in `test_roberto_nickson_is_the_one_sheet_row_that_breaks_its_own_ladder`.
 
-### What the engine catches that the sheet did not
+### What "16 of 17" actually compares — corrected 2026-09-11
 
-- **No-Code Exits** was scored 3.0 and ranked. It is a newsletter and the brief asks for
-  2 original videos — now dropped by the **deliverable gate** before scoring. It was also
-  given 5/5 on engagement with `N/A` view data.
-- **sofieestudies** scored 4.05 alongside a written note that it might be a fake account.
-  Now dropped by the **authenticity gate**, which beats the score.
+**This section previously claimed the engine caught two creators the sheet had ranked.
+It did not, and the claim was wrong.** Corrected when the product owner checked it
+against his own sheet. The sheet has **21 rows**, and they divide like this:
+
+| | Rows | |
+|---|---|---|
+| Scored by both, and compared | **17** | 16 reproduce exactly; Roberto Nickson diverges |
+| Dropped by the sheet before scoring mattered | 3 | No-Code Exits, Andy Stapleton, sofieestudies |
+| Added to the sheet after the test set was written | 1 | Dylan OTT |
+
+So "16 of 17" is agreement **across the rows both parties scored**, not across the whole
+list. Quoting it without that qualifier implies a stronger claim than the data supports.
+
+**The engine did not catch No-Code Exits or sofieestudies.** Both carry
+`DROP - no outreach needed` in the sheet's own outreach column — the product owner had
+already excluded them, and the free-text notes say why ("content format and audience
+doesn't exactly match"; "UNCLEAR if this is a real person"). The engine reaches the same
+verdict on both.
+
+What is true, and is a smaller claim worth making accurately: **the engine reaches it by
+a stated rule instead of a note.** No-Code Exits is gated on deliverable fit and
+sofieestudies on authenticity, both *before* scoring rather than after, so neither gets a
+score that has to be manually overridden. A judgement in a free-text column has to be
+remembered by whoever reads it next; a gate fires the same way on the next list without
+anyone remembering anything. That is a reproducibility argument, not a "we spotted
+something you missed" argument.
+
+**One genuine divergence in the other direction: Andy Stapleton.** The sheet drops him
+(weighted 2.4, funnel stage `DROP`). The engine returns `NEEDS_REVIEW` — *category
+readiness not judged* — so it neither keeps nor drops him. The sheet made a call the
+engine has no basis to make, because the readiness field was never filled in for that
+row. Worth recording: the engine is not a superset of the sheet's judgement, and on this
+row it is strictly less decisive.
 
 ### ⚠️ D3 is a known limitation — do not "fix" it without per-platform followers
 

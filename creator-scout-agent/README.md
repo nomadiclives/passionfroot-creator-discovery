@@ -78,10 +78,15 @@ Tier 2 ≥ 55, Tier 3 ≥ 35). The weights are locked in two directions: a test 
 values, and `agent_spec.check_weights_documented()` fails the suite if `config.py` and
 the spec drift apart. `/healthz` reports that agreement at runtime.
 
-The model is not asserted, it is corroborated: all 20 hand-scored weighted totals in the
-product owner's sheet reconcile against these weights to three decimals, and the engine
-reproduces **16 of 17** scored rows exactly. The one divergence is the sheet applying its
-own ladder inconsistently, pinned in a test rather than papered over.
+The model is not asserted, it is corroborated: the hand-scored weighted totals in the
+product owner's sheet reconcile against these weights to three decimals, and of the
+**17 rows the sheet and the engine both score, 16 reproduce exactly**. The divergence is
+the sheet applying its own ladder inconsistently, pinned in a test rather than papered
+over.
+
+Read that figure precisely. The sheet has 21 rows: 17 both parties score, three the sheet
+had already dropped before scoring mattered, and one added after the comparison set was
+written. It is agreement across the overlap, not across the list — see `HANDOVER.md`.
 
 ## What it refuses to do
 

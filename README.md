@@ -238,7 +238,8 @@ The corollary is that an empty result can be the correct answer, and the app is 
 say so on screen instead of looking broken.
 
 It also agrees with expert judgement rather than quietly re-ranking: the engine
-reproduces **16 of 17** hand-scored rows from the product owner's sheet exactly, and adds
+reproduces **16 of the 17 rows it and the sheet both score** exactly (the sheet has 21;
+the rest it had already dropped, or postdate the comparison), and adds
 gates on top. The one divergence is the sheet applying its own ladder inconsistently,
 pinned in a test rather than papered over.
 
