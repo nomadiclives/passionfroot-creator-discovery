@@ -312,6 +312,64 @@ tfoot th, tfoot td { border-bottom: 0; font-weight: 650; }
 }
 .flag-warn { background: var(--amber-soft); color: var(--amber); }
 
+/* ---------- page guide ----------
+   A short "what this page is for, and what to do" block at the top of each
+   screen. The app is used by people who did not build it, and every screen
+   here refuses to do something (invent a metric, guess a judgement, pretend an
+   API exists) — a refusal is only reassuring if you know why it happened. */
+.guide {
+  background: var(--accent-soft);
+  border: 1px solid #dde3fb;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.guide h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  letter-spacing: -.01em;
+}
+.guide p { margin: 0 0 10px; font-size: 13.5px; color: var(--ink); max-width: 82ch; }
+.guide p:last-child { margin-bottom: 0; }
+.guide-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  max-width: 82ch;
+}
+.guide-steps li { margin-bottom: 6px; }
+.guide-steps li:last-child { margin-bottom: 0; }
+.guide-steps strong { font-weight: 650; }
+
+/* Numbered step headings, for pages that are a sequence rather than a table. */
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  vertical-align: 2px;
+}
+
+/* Each search pass collapses, so the page opens as a short list of angles
+   rather than a wall of ~100 tiles. */
+.pass { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.pass:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.pass > summary {
+  cursor: pointer;
+  font-weight: 650;
+  font-size: 14.5px;
+  margin-bottom: 4px;
+}
+.pass > summary::marker { color: var(--ink-faint); }
+.pass-count { font-weight: 400; color: var(--ink-faint); }
+
 /* ---------- screening matrix (Step 3 triage) ---------- */
 /* Nine columns of verdicts, so it is wider than the shortlist table and scrolls
    horizontally inside .table-scroll rather than crushing the reasons. */
