@@ -609,6 +609,30 @@ this repo; re-check before any campaign that depends on the pool being complete.
 
 ---
 
+## Checking the engine on a new brand's list
+
+`data/fixtures/engine_check.csv` — 13 synthetic rows, one per engine behaviour, with
+every expected outcome written out in `data/fixtures/README.md` and pinned in
+`tests/test_engine_check_fixture.py`. Upload it with the default brief and check the
+table. Nothing in the engine is brand-specific, so if the thirteen behave, the engine
+is sound for any list.
+
+It tests the machine, not the judgement. Judgement quality needs a human benchmark:
+hand-score a real list before looking at the output, then measure agreement. That is
+what the Craftly sheet was.
+
+**It already surfaced one thing.** Row 02 carries a 0.4% view rate — effectively nobody
+watching — and is still shortlisted at 4.00, because the other four dimensions are human
+5s. The spec calls the engagement rate a gate that overrides every other dimension. No
+such gate fires today: every instrument has `floor=None`, correctly, because the spec's
+floors are engagement-rate numbers and the instrument measures view rate. There is no
+published view-rate floor to substitute and inventing one is not an option here. So the
+gate is absent for a good reason, but the absence is undocumented on screen and the
+consequence is real. Either fit a view-rate floor from real data, or state the missing
+gate on the How it works page. Pinned in a test meanwhile.
+
+---
+
 ## Still open
 
 Nothing here blocks running the app, and the app is deployed.

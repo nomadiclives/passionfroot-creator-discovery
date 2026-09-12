@@ -1,0 +1,14 @@
+name,platform,followers,resonance_rate,audience_match_score,content_match_score,geo_match_score,commercial_maturity_score,readiness,readiness_category,exclusivity,current_sponsors,source,sourced_from,sourced_date,notes
+01 Perfect Score,TikTok,120000,9.0,5,5,5,5,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,All fives — weighted score must be exactly 5.00
+02 Floor Case,TikTok,120000,0.4,5,5,5,5,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Resonance far below any band
+03 Missing Followers,TikTok,,7.0,4,4,4,4,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Required metric absent
+04 Missing Rate,YouTube,300000,,4,4,4,4,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Required metric absent
+05 No Readiness,TikTok,120000,9.0,5,5,5,5,,,,,fixture,synthetic test row,2026-09-12,Readiness never judged
+06 Wrong Category,TikTok,120000,9.0,5,5,5,5,adopted,Fintech apps,,,fixture,synthetic test row,2026-09-12,Judged against another category
+07 Unexposed Role,TikTok,120000,9.0,5,4,5,4,unexposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Must come out Awareness
+08 Exposed Role,TikTok,120000,9.0,5,4,5,4,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Must come out Credibility
+09 Adopted Role,TikTok,120000,9.0,5,4,5,4,adopted,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Must come out Conversion
+10 Locked By Clause,TikTok,120000,9.0,5,5,5,5,exposed,AI app-building tools,exclusive with Bubble through Q4,Bubble,fixture,synthetic test row,2026-09-12,Read clause — must drop
+11 Rival Sponsor No Clause,TikTok,120000,9.0,5,5,5,5,exposed,AI app-building tools,,Bubble,fixture,synthetic test row,2026-09-12,Worked with a rival but no clause — keep and flag
+12 Uncalibrated Platform,LinkedIn,60000,3.0,4,4,4,4,exposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,No fitted bands for this platform
+13 Weak All Round,TikTok,120000,1.2,1,1,1,1,unexposed,AI app-building tools,,,fixture,synthetic test row,2026-09-12,Should fall below the tier floor
