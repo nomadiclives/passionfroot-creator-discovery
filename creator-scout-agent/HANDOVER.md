@@ -515,8 +515,12 @@ Two things it states plainly and should keep stating: four of the five dimension
 are human-entered, and outreach angles are three templates rather than generated
 copy. If either becomes untrue, update the page in the same commit.
 
-Verified rendering at 200 with the live weights (30/25/25/10/10), LinkedIn named as
-uncalibrated, and the spec-agreement line reading "agree". No test covers this page.
+Covered by `tests/test_how_it_works.py` (12 tests). They pin the page to live config —
+weights, readiness-to-role mapping, uncalibrated platforms, upload retention — so a
+config change that the page does not reflect fails the suite. They also pin the three
+claims most likely to drift into overclaiming: that it cannot source, cannot verify a
+number, and cannot form judgements; that outreach angles are templates; and that the
+sheet-agreement figure is stated precisely.
 
 ---
 
